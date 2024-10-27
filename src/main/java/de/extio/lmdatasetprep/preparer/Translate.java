@@ -60,7 +60,7 @@ public class Translate implements Consumer<String[]> {
 			throw new RuntimeException("Cannot read file", e);
 		}
 		
-		final List<String> splits = Utils.splitParagraphs(text, Utils.PARAGRAPH_CHUNKS_NORM, Utils.PARAGRAPH_CHUNKS_VAR);
+		final List<String> splits = Utils.splitParagraphs(text, 1250, 350);
 		
 		final List<String> translations = new ArrayList<>(splits.size());
 		for (final String split : splits) {

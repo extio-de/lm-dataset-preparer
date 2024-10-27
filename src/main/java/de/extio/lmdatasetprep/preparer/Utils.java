@@ -20,10 +20,6 @@ public class Utils {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
 	
-	static final int PARAGRAPH_CHUNKS_NORM = 1250;
-	
-	static final int PARAGRAPH_CHUNKS_VAR = 350;
-	
 	static String normalizeText(final String text) {
 		String result = text;
 		

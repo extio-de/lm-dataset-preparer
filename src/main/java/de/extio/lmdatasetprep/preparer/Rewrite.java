@@ -28,16 +28,21 @@ public class Rewrite implements Consumer<String[]> {
 	private static String ENHANCE_PROMPT = "Improve the following paragraph of an existing text. %s without changing the existing sentences, focusing on enriching the description of the setting in a nuanced and understated way. Don't include a preamble and no explanation:";
 	
 	private static List<String> ENHANCEMENTS = List.of(
-			"Infuse this paragraph with evocative sensory details, focusing on the texture of objects and the atmosphere of the setting",
+			"Infuse this paragraph with subtle sensory details, focusing on the texture of objects and the atmosphere of the setting",
 			"Add subtle hints of the character's inner thoughts and emotions within the existing dialogue and actions",
 			"Enhance the paragraph with figurative language like metaphors or similes to create a richer tapestry of imagery",
 			"Develop the subtext of the paragraph by suggesting unspoken tensions or hidden motivations between characters",
 			"Introduce a faint scent or sound that adds another layer of sensory detail to the scene without disrupting the flow",
-			"Imbue the paragraph with a sense of foreboding or anticipation by subtly hinting at future events without revealing specifics",
-			"Weave in a historical or cultural reference relevant to the setting or characters to add depth and context",
+			"Imbue the paragraph with a subtle sense of foreboding or anticipation by subtly hinting at future events without revealing specifics",
 			"Elevate the language of the paragraph by replacing basic verbs and adjectives with more evocative synonyms",
 			"Add a touch of humor or irony to the paragraph through clever wordplay or unexpected observations",
-			"Imagine this paragraph as a still photograph. Describe the composition and lighting to further bring the scene to life");
+			"Infuse the paragraph with a hint of melancholy through carefully chosen word choices",
+			"Elevate the prose by subtly substituting bland adjectives with more evocative synonyms",
+			"Suggest a deeper history for the setting through understated details and allusions",
+			"Employ precise verbs to bring a greater sense of movement and life to the scene",
+			"Weave in olfactory details – scents, aromas, and odors – to add another layer of sensory experience",
+			"Introduce a sense of anticipation or unease through carefully placed descriptive elements",
+			"Imbue the setting with a sense of timelessness or age through subtle phrasing and word choice");
 	
 	@Autowired
 	private Client client;
@@ -53,11 +58,9 @@ public class Rewrite implements Consumer<String[]> {
 				f -> {
 					final List<Runnable> tasks = new ArrayList<>();
 					tasks.add(() -> this.rewriteFile(args, f, 0, "impr", ModelCategory.COLD, IMPROVEMENT_PROMPT));
-					for (final ModelCategory modelCategory : List.of(ModelCategory.COLD, ModelCategory.HOT)) {
-						for (int i = 0; i < Integer.parseInt(args[3]); i++) {
-							final int fi = i;
-							tasks.add(() -> this.rewriteFile(args, f, fi, "enh", modelCategory, String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(RANDOM.get().nextInt(ENHANCEMENTS.size())))));
-						}
+					for (int i = 0; i < Integer.parseInt(args[3]); i++) {
+						final int fi = i;
+						tasks.add(() -> this.rewriteFile(args, f, fi, "enh", ModelCategory.COLD, String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(RANDOM.get().nextInt(ENHANCEMENTS.size())))));
 					}
 					return tasks;
 				});
@@ -95,7 +98,7 @@ public class Rewrite implements Consumer<String[]> {
 			throw new RuntimeException("Cannot read file", e);
 		}
 		
-		final List<String> splits = Utils.splitParagraphs(text, Utils.PARAGRAPH_CHUNKS_NORM, Utils.PARAGRAPH_CHUNKS_VAR);
+		final List<String> splits = Utils.splitParagraphs(text, 1250, 350);
 		
 		final List<String> paragraphs = new ArrayList<>(splits.size());
 		for (final String split : splits) {
