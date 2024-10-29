@@ -7,9 +7,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -105,19 +106,56 @@ public class Utils {
 	}
 	
 	static void transformDirectory(final String path, final Function<Path, List<Runnable>> createTasks) {
-		try (final ExecutorService executor = Executors.newFixedThreadPool(4);
-				Stream<Path> stream = Files.list(Paths.get(path))) {
-			final List<CompletableFuture<?>> tasks = new ArrayList<>();
+		final int EXECUTORS = 4;
+		
+		try (Stream<Path> stream = Files.list(Paths.get(path))) {
+			final AtomicBoolean finished = new AtomicBoolean(false);
+			
+			final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>(EXECUTORS * 2);
+			
+			final List<Thread> threads = new ArrayList<>(EXECUTORS);
+			for (int i = 0; i < EXECUTORS; i++) {
+				final Thread executor = new Thread(() -> {
+					while (!Thread.interrupted() && !finished.get()) {
+						try {
+							final Runnable task = tasks.poll(1, TimeUnit.SECONDS);
+							if (task != null) {
+								task.run();
+							}
+						}
+						catch (final InterruptedException e) {
+							break;
+						}
+					}
+				});
+				executor.setName("Executor " + i);
+				executor.start();
+				threads.add(executor);
+			}
+			
 			stream
 					.filter(p -> Files.isRegularFile(p))
 					.forEach(p -> {
 						for (final Runnable r : createTasks.apply(p)) {
-							tasks.add(CompletableFuture.runAsync(r, executor));
+							try {
+								tasks.put(r);
+							}
+							catch (final InterruptedException e) {
+								throw new RuntimeException("Interrupted", e);
+							}
 						}
 					});
-			CompletableFuture.allOf(tasks.toArray(new CompletableFuture[0])).join();
+			
+			while (!tasks.isEmpty()) {
+				Thread.sleep(1);
+			}
+			finished.set(true);
+			
+			for (int i = 0; i < EXECUTORS; i++) {
+				threads.get(i).join();
+			}
 		}
-		catch (final IOException e) {
+		catch (final IOException | InterruptedException e) {
 			LOGGER.error("Error", e);
 		}
 	}
