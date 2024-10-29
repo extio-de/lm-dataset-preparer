@@ -64,8 +64,8 @@ public class Translate implements Consumer<String[]> {
 		
 		final List<String> translations = new ArrayList<>(splits.size());
 		for (final String split : splits) {
-			final var completion = this.client.completion("You are a helpful assistant with great language translation and authoring skills.",
-					"Translate the following text to English. Don't include a preamble and no explanation:",
+			final var completion = this.client.completion("You are an assistant with great language translation and authoring skills.",
+					"Translate the following text to English. Return the English translation, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
 					split,
 					ModelCategory.COLD);
 			translations.add(completion.response());

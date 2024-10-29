@@ -62,7 +62,7 @@ public class Utils {
 		final int CHUNKS_MIN = chunks_norm - chunks_var;
 		final int CHUNKS_MAX = chunks_norm + chunks_var;
 		
-		if (text.length() <= chunks_norm + chunks_var) {
+		if (text.length() <= CHUNKS_MAX) {
 			return Collections.singletonList(text);
 		}
 		
@@ -70,7 +70,7 @@ public class Utils {
 		
 		int pos = 0;
 		paragraphs: do {
-			if (text.length() - pos > chunks_norm + chunks_var) {
+			if (text.length() - pos > CHUNKS_MAX) {
 				delimiters: for (final String delimiter : List.of("\n\n", "\n", ".")) {
 					int next = text.indexOf(delimiter, pos);
 					while (next > -1) {
@@ -93,7 +93,7 @@ public class Utils {
 				}
 			}
 			
-			final int next = Math.min(pos + chunks_norm, text.length());
+			final int next = Math.min(pos + CHUNKS_MAX, text.length());
 			final String split = text.substring(pos, next).trim();
 			splits.add(split);
 			pos = next + 1;

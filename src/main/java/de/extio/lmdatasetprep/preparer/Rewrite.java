@@ -23,9 +23,9 @@ public class Rewrite implements Consumer<String[]> {
 	
 	private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(XorShift128Random::new);
 	
-	private static String IMPROVEMENT_PROMPT = "Improve the following paragraph of an existing text without changing the existing sentences, improve the text in a nuanced and understated way. Don't include a preamble and no explanation:";
+	private static String IMPROVEMENT_PROMPT = "Improve the following text without changing the existing sentences, improve the text in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
 	
-	private static String ENHANCE_PROMPT = "Improve the following paragraph of an existing text. %s without changing the existing sentences, focusing on enriching the description of the setting in a nuanced and understated way. Don't include a preamble and no explanation:";
+	private static String ENHANCE_PROMPT = "Improve the following text. %s without changing the existing sentences, focusing on enriching the description of the setting in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
 	
 	private static List<String> ENHANCEMENTS = List.of(
 			"Infuse this paragraph with subtle sensory details, focusing on the texture of objects and the atmosphere of the setting",
