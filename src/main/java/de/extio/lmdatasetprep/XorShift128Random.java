@@ -1,4 +1,4 @@
-package de.extio.lmdatasetprep.preparer;
+package de.extio.lmdatasetprep;
 
 import java.util.Random;
 import java.util.UUID;
