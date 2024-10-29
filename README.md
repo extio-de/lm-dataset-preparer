@@ -1,26 +1,19 @@
 # lm-dataset-preparer
 
-**Program Name:** Text Processing and Translation Program
+This program is designed for processing and rewriting text files using a language model. 
 
-**Purpose:** The program is designed to process and translate text files, generating new paragraphs and converting them into various formats. It utilizes a client to make API calls to a model, applies text normalization and transformation techniques, and writes the results to new files.
+Here's a breakdown of its functionality:
 
-**Key Features:**
+1. **Text Preparation:** The program utilizes several classes to prepare the text for processing. It can translate text files to English, normalize text, split text into paragraphs, and convert paragraphs into JSON format.
 
-1. **Text Translation:** Translates text files from various languages to English using a client-provided completion API.
-2. **Model-based Rewriting:** Generates new paragraphs based on input text and model categories, applying multiple models and enhancements.
-3. **Text Normalization:** Removes excessive newlines, spaces, and tabs, and replaces multiple consecutive newlines with a single newline.
-4. **Paragraph Splitting:** Splits text into paragraphs based on a specified chunk size and tolerance range.
-5. **Directory Transformation:** Applies a function to each file in a directory in parallel using a fixed thread pool.
-6. **File Conversion:** Converts text files into JSONL (JSON Lines) format, splitting them into paragraphs and chunks based on provided normalization and variation values.
+2. **Contextual Prompt Generation:** For each paragraph, the program generates contextual prompts using an external AI service. These prompts help guide the language model in understanding the context of the paragraph.
 
-**Components:**
+3. **Text Rewriting:** The program leverages a language model to rewrite text paragraphs. It supports two types of rewriting: "improvement" and "enhancement," each with its own set of prompts. Multiple enhancement variations are possible by randomly selecting from a list of prompts.
 
-1. A Spring component that translates text files to English.
-2. A Spring component that rewrites text files by generating new paragraphs based on input text and model categories.
-3. A Spring component that converts text files into JSONL format.
-4. A utility class with methods for text normalization, paragraph splitting, and directory transformation.
+4. **Output:** The rewritten text, along with the generated prompts, is saved in a JSONL file.
 
-Overall, the program is designed to efficiently process and translate text files, applying various techniques to generate new paragraphs and convert them into different formats.
+**Purpose:**
 
-*[requests=5, requestDuration=PT14.64756857S, inTokens=3966, outTokens=801, tps=57.214285714285715]*
+The overall purpose of this program is to facilitate the rewriting and improvement of text files using a language model. The contextual prompts and different rewriting modes allow for flexible and nuanced text manipulation. This could be useful for tasks such as fine-tuning of large language models (LLMs).
 
+*[gemma-2-27b-it-Q4_K_L.gguf; requests=6, requestDuration=PT1M36.661188325S, inTokens=6473, outTokens=506, tps=5.270833333333333]*
