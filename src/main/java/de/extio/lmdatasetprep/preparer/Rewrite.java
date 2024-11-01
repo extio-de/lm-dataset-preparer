@@ -112,7 +112,7 @@ public class Rewrite implements Consumer<String[]> {
 			throw new RuntimeException("Cannot read file", e);
 		}
 		
-		final List<String> splits = Utils.splitParagraphs(text, 1250, 350);
+		final List<String> splits = Utils.splitParagraphs(text, 1250, 350, false);
 		
 		for (final String split : splits) {
 			LOGGER.info("Split " + splits.indexOf(split) + "/" + splits.size());

@@ -67,18 +67,9 @@ public class Text2Jsonl implements Consumer<String[]> {
 		final List<String> jsonl = new ArrayList<>();
 		final ObjectMapper mapper = new ObjectMapper();
 		
-		final List<String> paragraphs = Utils.splitParagraphs(text, chunkNorm, chunkVar);
+		final List<String> paragraphs = Utils.splitParagraphs(text, chunkNorm, chunkVar, true);
 		for (int i = 0; i < paragraphs.size(); i++) {
-			String split = paragraphs.get(i);
-			
-			if (i > 0) { // Add sliding window
-				final String prevSplit = paragraphs.get(i - 1);
-				final List<String> prevSplitted = Utils.splitParagraphs(prevSplit, prevSplit.length() - chunkVar, chunkVar - 1);
-				if (prevSplitted.size() > 1) {
-					split = prevSplitted.getLast() + "\n\n" + split;
-				}
-			}
-			
+			final String split = paragraphs.get(i);
 			try {
 				jsonl.add(mapper.writeValueAsString(new TextLine(split)));
 			}

@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 
 public class Utils {
 	
+	private static final List<String> PARAGRAPH_DELIMITERS = List.of("\n\n", "\n", ".", "!", "?");
+	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
 	
 	static String normalizeText(final String text) {
@@ -59,7 +61,7 @@ public class Utils {
 		return result;
 	}
 	
-	static List<String> splitParagraphs(final String text, final int chunks_norm, final int chunks_var) {
+	static List<String> splitParagraphs(final String text, final int chunks_norm, final int chunks_var, final boolean slidingWindows) {
 		final int CHUNKS_MIN = chunks_norm - chunks_var;
 		final int CHUNKS_MAX = chunks_norm + chunks_var;
 		
@@ -70,34 +72,39 @@ public class Utils {
 		final List<String> splits = new ArrayList<>();
 		
 		int pos = 0;
-		paragraphs: do {
+		do {
+			int next = -1;
+			int delLength = 1;
 			if (text.length() - pos > CHUNKS_MAX) {
-				delimiters: for (final String delimiter : List.of("\n\n", "\n", ".")) {
-					int next = text.indexOf(delimiter, pos);
-					while (next > -1) {
-						if (next < pos + CHUNKS_MIN) {
-							next = text.indexOf(delimiter, next + 1);
-						}
-						else if (next > pos + CHUNKS_MAX) {
-							continue delimiters;
-						}
-						else {
-							String split = text.substring(pos, next).trim();
-							if (!split.endsWith(".")) {
-								split = split + ".";
-							}
-							splits.add(split);
-							pos = next + delimiter.length();
-							continue paragraphs;
-						}
+				for (final String delimiter : PARAGRAPH_DELIMITERS) {
+					final int o = text.indexOf(delimiter, pos + CHUNKS_MIN);
+					if (o > -1 && o <= pos + CHUNKS_MAX) {
+						next = o;
+						delLength = delimiter.length();
+						break;
 					}
 				}
 			}
+			if (next == -1) {
+				next = Math.min(pos + CHUNKS_MAX, text.length());
+			}
 			
-			final int next = Math.min(pos + CHUNKS_MAX, text.length());
-			final String split = text.substring(pos, next).trim();
+			if (slidingWindows) {
+				for (final String delimiter : PARAGRAPH_DELIMITERS) {
+					final int o = text.indexOf(delimiter, Math.max(0, pos - chunks_var));
+					if (o > -1 && o < pos) {
+						pos = o;
+						break;
+					}
+				}
+			}
+			String split = text.substring(pos, next).trim();
+			if (!split.endsWith(".") && !split.endsWith("!") && !split.endsWith("?")) {
+				split = split + ".";
+			}
 			splits.add(split);
-			pos = next + 1;
+			
+			pos = next + delLength;
 		} while (pos < text.length());
 		
 		LOGGER.info("Created {} splits", splits.size());

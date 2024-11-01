@@ -48,6 +48,8 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 			final List<Runnable> tasks = new ArrayList<>();
 			
 			for (final ChunkCfg chunkCfg : chunkConfigurations) {
+				final List<String> paragraphs = this.fileToParagraphs(p, chunkCfg.chunksNorm(), chunkCfg.chunksVar());
+				
 				for (int i = 0; i < variations; i++) {
 					final Path out = Utils.suffixFilename(Path.of(args[2]).resolve(p.getFileName()),
 							"contextualds",
@@ -61,7 +63,6 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 					
 					tasks.add(() -> {
 						try (var fos = Files.newOutputStream(out)) {
-							final List<String> paragraphs = this.fileToParagraphs(p, chunkCfg.chunksNorm(), chunkCfg.chunksVar());
 							for (final String paragraph : paragraphs) {
 								LOGGER.info("Paragraph " + paragraphs.indexOf(paragraph) + "/" + paragraphs.size());
 								final var qaLine = this.paragraphToContextualPrompt(paragraph);
@@ -80,7 +81,7 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 	}
 	
 	List<String> fileToParagraphs(final Path file, final int chunkNorm, final int chunkVar) {
-		LOGGER.info("Splitting to jsonl " + file);
+		LOGGER.info("Splitting to jsonl " + file + " -> " + chunkNorm + "±" + chunkVar);
 		
 		String text;
 		try {
@@ -90,7 +91,7 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 			throw new RuntimeException("Cannot read file", e);
 		}
 		
-		return Utils.splitParagraphs(text, chunkNorm, chunkVar);
+		return Utils.splitParagraphs(text, chunkNorm, chunkVar, true);
 	}
 	
 	private QaLine paragraphToContextualPrompt(final String paragraph) {
@@ -98,7 +99,8 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 				"Enhance the given text by crafting a prompt that effectively provides additional context, enabling the language model to better understand the subject matter and generate more informative and relevant responses. This prompt should be clear, concise, and tailored to facilitate contextual learning, allowing the model to grasp the essential details and nuances of the topic. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
 				paragraph,
 				ModelCategory.COLD);
-		final var qaLine = new QaLine(completion.response().replace("Prompt:", ""), paragraph);
+		String q = completion.response().replace("Prompt:", "").trim();
+		final var qaLine = new QaLine(q, paragraph);
 		return qaLine;
 	}
 	
