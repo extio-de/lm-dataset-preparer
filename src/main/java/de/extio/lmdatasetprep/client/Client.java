@@ -4,9 +4,9 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,20 +48,20 @@ public class Client {
 	@Value("${client.collectStatistics}")
 	private boolean collectStatistics;
 	
-	private Map<String, Integer> promptTemplateTokenLengths = new HashMap<>();
+	private final Map<String, Integer> promptTemplateTokenLengths = new ConcurrentHashMap<>();
 	
 	public Completion completion(final String instruction, final String question, final String fullText, final ModelCategory modelCategory) {
 		final var modelProfile = this.modelProfileService.getModelProfile(modelCategory.getModelProfile());
 		final PromptStrategy promptStrategy = this.promptStrategyFactory.getStrategy(modelProfile.prompt());
-
+		
 		final List<String> texts = new ArrayList<>();
-		List<Long> tokenizedInstrAndQuestion = this.tokenizer.tokenize(instruction + question, modelProfile);
-		List<Long> tokenizedFullText = this.tokenizer.tokenize(fullText, modelProfile);
-		int inputTokens = tokenizedInstrAndQuestion.size() + tokenizedFullText.size() + this.getPromptTemplateTokenLength(modelProfile);
+		final List<Long> tokenizedInstrAndQuestion = this.tokenizer.tokenize(instruction + question, modelProfile);
+		final List<Long> tokenizedFullText = this.tokenizer.tokenize(fullText, modelProfile);
+		final int inputTokens = tokenizedInstrAndQuestion.size() + tokenizedFullText.size() + this.getPromptTemplateTokenLength(modelProfile);
 		if (inputTokens > modelProfile.maxContextLength() - modelProfile.maxTokens()) {
-			int steps = modelProfile.maxContextLength() - modelProfile.maxTokens() - tokenizedInstrAndQuestion.size() - this.getPromptTemplateTokenLength(modelProfile);
+			final int steps = modelProfile.maxContextLength() - modelProfile.maxTokens() - tokenizedInstrAndQuestion.size() - this.getPromptTemplateTokenLength(modelProfile);
 			for (int i = 0; i < tokenizedFullText.size(); i += steps) {
-				List<Long> split = tokenizedFullText.subList(i, Math.min(i + steps, tokenizedFullText.size()));
+				final List<Long> split = tokenizedFullText.subList(i, Math.min(i + steps, tokenizedFullText.size()));
 				texts.add(this.tokenizer.detokenize(split, modelProfile));
 			}
 		}
@@ -167,7 +167,7 @@ public class Client {
 	private int getPromptTemplateTokenLength(final ModelProfile modelProfile) {
 		return this.promptTemplateTokenLengths.computeIfAbsent(modelProfile.prompt(), key -> {
 			final PromptStrategy promptStrategy = this.promptStrategyFactory.getStrategy(modelProfile.prompt());
-			var prompt = promptStrategy.start(" ", " ", " ");
+			final var prompt = promptStrategy.start(" ", " ", " ");
 			return this.tokenizer.count(prompt.toString(), modelProfile);
 		});
 	}
