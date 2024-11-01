@@ -1,6 +1,7 @@
 package de.extio.lmdatasetprep.preparer;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,53 +32,51 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 	@Override
 	public void accept(final String[] args) {
 		if (args.length < 6) {
-			LOGGER.error("Arguments are missing. <Path to text files> <Path to output dir> <chunk norm> <chunk var> <variations>");
+			LOGGER.error("Arguments are missing. <Path to text files> <Path to output dir> <variations> (<chunk norm> <chunk var>, ...)");
 			return;
 		}
-		final int chunksNorm = Integer.parseInt(args[3]);
-		final int chunksVar = Integer.parseInt(args[4]);
-		final int variations = Integer.parseInt(args[5]);
+		final int variations = Integer.parseInt(args[3]);
+		final List<ChunkCfg> chunkConfigurations = new ArrayList<>();
+		for (int i = 4; i < args.length; i += 2) {
+			final var cfg = new ChunkCfg(Integer.parseInt(args[i]), Integer.parseInt(args[i + 1]));
+			chunkConfigurations.add(cfg);
+		}
 		
 		final ObjectMapper mapper = new ObjectMapper();
 		
-		final Path out = Path.of(args[2], "dataset_with_context_" + chunksNorm + ".jsonl");
-		try (var fos = Files.newOutputStream(out)) {
-			Utils.transformDirectory(args[1], p -> {
-				final List<Runnable> tasks = new ArrayList<>();
-				final List<String> paragraphs = this.fileToParagraphs(p, chunksNorm, chunksVar);
-				for (final String paragraph : paragraphs) {
-					for (int i = 0; i < variations; i++) {
-						final int fI = i;
-						tasks.add(() -> {
-							
-							LOGGER.info("### TASK ### " + paragraphs.indexOf(paragraph) + " " + fI + " " + paragraphs.size());
-							
-							final var completion = this.client.completion("You are an assistant with great authoring skills.",
-									"Enhance the given text by crafting a prompt that effectively provides additional context, enabling the language model to better understand the subject matter and generate more informative and relevant responses. This prompt should be clear, concise, and tailored to facilitate contextual learning, allowing the model to grasp the essential details and nuances of the topic. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
-									paragraph,
-									ModelCategory.COLD);
-							final var qaLine = new QaLine(completion.response().replace("Prompt:", ""), paragraph);
-							try {
-								final var jsonb = mapper
-										.writeValueAsString(qaLine)
-										.getBytes(StandardCharsets.UTF_8);
-								synchronized (this) {
-									fos.write(jsonb);
-									fos.write(NEWLINE);
-								}
-							}
-							catch (final IOException e) {
-								LOGGER.error("Cannot convert split to json", e);
-							}
-						});
+		Utils.transformDirectory(args[1], p -> {
+			final List<Runnable> tasks = new ArrayList<>();
+			
+			for (final ChunkCfg chunkCfg : chunkConfigurations) {
+				for (int i = 0; i < variations; i++) {
+					final Path out = Utils.suffixFilename(Path.of(args[2]).resolve(p.getFileName()),
+							"contextualds",
+							String.valueOf(chunkCfg.chunksNorm()),
+							String.valueOf(i),
+							".jsonl");
+					if (Files.exists(out)) {
+						LOGGER.info("Skipping " + out);
+						continue;
 					}
+					
+					tasks.add(() -> {
+						try (var fos = Files.newOutputStream(out)) {
+							final List<String> paragraphs = this.fileToParagraphs(p, chunkCfg.chunksNorm(), chunkCfg.chunksVar());
+							for (final String paragraph : paragraphs) {
+								LOGGER.info("Paragraph " + paragraphs.indexOf(paragraph) + "/" + paragraphs.size());
+								final var qaLine = this.paragraphToContextualPrompt(paragraph);
+								this.writeJsonLine(mapper, fos, qaLine);
+							}
+						}
+						catch (final IOException e1) {
+							LOGGER.error("IO exception", e1);
+						}
+					});
 				}
-				return tasks;
-			});
-		}
-		catch (final IOException e1) {
-			LOGGER.error("IO exception", e1);
-		}
+			}
+			
+			return tasks;
+		});
 	}
 	
 	List<String> fileToParagraphs(final Path file, final int chunkNorm, final int chunkVar) {
@@ -94,7 +93,32 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 		return Utils.splitParagraphs(text, chunkNorm, chunkVar);
 	}
 	
+	private QaLine paragraphToContextualPrompt(final String paragraph) {
+		final var completion = this.client.completion("You are an assistant with great authoring skills.",
+				"Enhance the given text by crafting a prompt that effectively provides additional context, enabling the language model to better understand the subject matter and generate more informative and relevant responses. This prompt should be clear, concise, and tailored to facilitate contextual learning, allowing the model to grasp the essential details and nuances of the topic. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
+				paragraph,
+				ModelCategory.COLD);
+		final var qaLine = new QaLine(completion.response().replace("Prompt:", ""), paragraph);
+		return qaLine;
+	}
+	
+	private void writeJsonLine(final ObjectMapper mapper, final OutputStream fos, final QaLine qaLine) {
+		try {
+			final var jsonb = mapper
+					.writeValueAsString(qaLine)
+					.getBytes(StandardCharsets.UTF_8);
+			fos.write(jsonb);
+			fos.write(NEWLINE);
+		}
+		catch (final IOException e) {
+			LOGGER.error("Cannot convert split to json", e);
+		}
+	}
+	
 	record QaLine(String question, String answer) {
+	}
+	
+	record ChunkCfg(int chunksNorm, int chunksVar) {
 	}
 	
 }

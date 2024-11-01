@@ -31,7 +31,7 @@ public class ClientTest {
 				"You are a clever story teller",
 				"Continue this story:",
 				"Once upon a time, there was a spaceship travelling to a black hole. The crew were cats!",
-				ModelCategory.HOT);
+				ModelCategory.COLD);
 		LOGGER.info(completion.response());
 	}
 	
@@ -48,7 +48,7 @@ public class ClientTest {
 				"You are counting machine",
 				"How many numbers do you count?",
 				sb.toString(),
-				ModelCategory.HOT);
+				ModelCategory.COLD);
 		LOGGER.info(completion.response());
 	}
 	

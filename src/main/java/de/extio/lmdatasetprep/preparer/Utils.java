@@ -161,13 +161,23 @@ public class Utils {
 	}
 	
 	static Path suffixFilename(final Path f, final String... suffixes) {
-		final String[] parts = f.getFileName().toString().split("[.]");
 		final StringBuilder sb = new StringBuilder();
 		for (final String suffix : suffixes) {
-			sb.append('_');
-			sb.append(suffix);
+			if (suffix.charAt(0) != '.') {
+				sb.append('_');
+				sb.append(suffix);
+			}
 		}
-		sb.append('.');
-		return f.getParent().resolve(parts[0] + sb.toString() + parts[1]);
+		
+		final String[] parts = f.getFileName().toString().split("[.]");
+		String last;
+		if (suffixes[suffixes.length - 1].charAt(0) == '.') {
+			last = suffixes[suffixes.length - 1];
+		}
+		else {
+			last = "." + parts[1];
+		}
+		
+		return f.getParent().resolve(parts[0] + sb.toString() + last);
 	}
 }

@@ -1,11 +1,13 @@
 package de.extio.lmdatasetprep.preparer;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -23,6 +25,8 @@ public class Rewrite implements Consumer<String[]> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Rewrite.class);
 	
 	private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(XorShift128Random::new);
+	
+	private static final byte[] PARAGRAPH = "\n\n".getBytes(StandardCharsets.UTF_8);
 	
 	private static String IMPROVEMENT_PROMPT = "Improve the following text without changing the existing sentences, improve the text in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
 	
@@ -80,17 +84,26 @@ public class Rewrite implements Consumer<String[]> {
 		}
 		
 		LOGGER.info("Rewriting " + f.getFileName() + " " + identifier + " " + modelCategory.name() + " " + i);
-		
-		final List<String> paragraphs = this.rewrite(f, prompt, modelCategory);
-		try {
-			Files.writeString(out, String.join("\n\n", paragraphs));
+		try (var fos = Files.newOutputStream(out)) {
+			final AtomicBoolean first = new AtomicBoolean(true);
+			this.rewrite(f, prompt, modelCategory, chunk -> {
+				try {
+					if (!first.getAndSet(false)) {
+						fos.write(PARAGRAPH);
+					}
+					fos.write(chunk.getBytes(StandardCharsets.UTF_8));
+				}
+				catch (final IOException e) {
+					LOGGER.error("IO exception", e);
+				}
+			});
 		}
-		catch (final IOException e) {
-			LOGGER.error("Cannot store file", e);
+		catch (final IOException e1) {
+			LOGGER.error("IO exception", e1);
 		}
 	}
 	
-	List<String> rewrite(final Path file, final String prompt, final ModelCategory modelCategory) {
+	void rewrite(final Path file, final String prompt, final ModelCategory modelCategory, final Consumer<String> consumer) {
 		String text;
 		try {
 			text = Utils.normalizeText(Files.readString(file));
@@ -101,16 +114,14 @@ public class Rewrite implements Consumer<String[]> {
 		
 		final List<String> splits = Utils.splitParagraphs(text, 1250, 350);
 		
-		final List<String> paragraphs = new ArrayList<>(splits.size());
 		for (final String split : splits) {
+			LOGGER.info("Split " + splits.indexOf(split) + "/" + splits.size());
 			final var completion = this.client.completion("You are a helpful assistant with great authoring skills.",
 					prompt,
 					split,
 					modelCategory);
-			paragraphs.add(completion.response());
+			consumer.accept(completion.response());
 		}
-		
-		return paragraphs;
 	}
 	
 }

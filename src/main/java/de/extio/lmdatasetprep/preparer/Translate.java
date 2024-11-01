@@ -1,10 +1,11 @@
 package de.extio.lmdatasetprep.preparer;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -20,6 +21,8 @@ public class Translate implements Consumer<String[]> {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Translate.class);
 	
+	private static final byte[] PARAGRAPH = "\n\n".getBytes(StandardCharsets.UTF_8);
+	
 	@Autowired
 	private Client client;
 	
@@ -32,24 +35,34 @@ public class Translate implements Consumer<String[]> {
 		
 		Utils.transformDirectory(args[1], p -> {
 			return List.of(() -> {
-				try {
-					Path out = Utils.suffixFilename(Path.of(args[2]).resolve(p.getFileName()), "_en");
-					if (Files.exists(out)) {
-						LOGGER.info("Skipping " + out);
-					}
-					else {
-						final var translations = this.translate(p);
-						Files.writeString(out, String.join("\n\n", translations));
-					}
+				final Path out = Utils.suffixFilename(Path.of(args[2]).resolve(p.getFileName()), "_en");
+				if (Files.exists(out)) {
+					LOGGER.info("Skipping " + out);
 				}
-				catch (final IOException e) {
-					LOGGER.error("Cannot store file", e);
+				else {
+					try (var fos = Files.newOutputStream(out)) {
+						final AtomicBoolean first = new AtomicBoolean(true);
+						this.translate(p, chunk -> {
+							try {
+								if (!first.getAndSet(false)) {
+									fos.write(PARAGRAPH);
+								}
+								fos.write(chunk.getBytes(StandardCharsets.UTF_8));
+							}
+							catch (final IOException e) {
+								LOGGER.error("IO exception", e);
+							}
+						});
+					}
+					catch (final IOException e1) {
+						LOGGER.error("IO exception", e1);
+					}
 				}
 			});
 		});
 	}
 	
-	List<String> translate(final Path file) {
+	void translate(final Path file, final Consumer<String> consumer) {
 		LOGGER.info("Translating " + file);
 		
 		String text;
@@ -62,16 +75,14 @@ public class Translate implements Consumer<String[]> {
 		
 		final List<String> splits = Utils.splitParagraphs(text, 1250, 350);
 		
-		final List<String> translations = new ArrayList<>(splits.size());
 		for (final String split : splits) {
+			LOGGER.info("Split " + splits.indexOf(split) + "/" + splits.size());
 			final var completion = this.client.completion("You are an assistant with great language translation and authoring skills.",
 					"Translate the following text to English. Return the English translation, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
 					split,
 					ModelCategory.COLD);
-			translations.add(completion.response());
+			consumer.accept(completion.response());
 		}
-		
-		return translations;
 	}
 	
 }
