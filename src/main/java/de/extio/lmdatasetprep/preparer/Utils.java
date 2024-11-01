@@ -89,9 +89,9 @@ public class Utils {
 				next = Math.min(pos + CHUNKS_MAX, text.length());
 			}
 			
-			if (slidingWindows) {
+			if (slidingWindows && pos > chunks_var) {
 				for (final String delimiter : PARAGRAPH_DELIMITERS) {
-					final int o = text.indexOf(delimiter, Math.max(0, pos - chunks_var));
+					final int o = text.indexOf(delimiter, pos - chunks_var);
 					if (o > -1 && o < pos) {
 						pos = o;
 						break;
