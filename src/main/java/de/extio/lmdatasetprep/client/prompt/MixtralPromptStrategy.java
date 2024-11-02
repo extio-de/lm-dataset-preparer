@@ -10,10 +10,14 @@ public class MixtralPromptStrategy implements PromptStrategy {
 		final StringBuilder prompt = new StringBuilder();
 		prompt.append("<s>[INST] ");
 		prompt.append(instruction);
-		if (!question.isEmpty() && !text.isEmpty()) {
-			prompt.append(" ");
+		if (!instruction.isEmpty() && !question.isEmpty()) {
+			prompt.append("\n");
 		}
 		prompt.append(question);
+		if ((!instruction.isEmpty() || !question.isEmpty()) && !text.isEmpty()) {
+			prompt.append("\n");
+		}
+		prompt.append(text);
 		prompt.append(" [/INST]");
 		return prompt;
 	}
@@ -30,6 +34,11 @@ public class MixtralPromptStrategy implements PromptStrategy {
 		prompt.append("\"</s> [INST] ");
 		prompt.append(user);
 		prompt.append(" [/INST]");
+	}
+	
+	@Override
+	public String removeEOT(final String prompt) {
+		return prompt.strip().replace("</s>", "");
 	}
 	
 	@Override

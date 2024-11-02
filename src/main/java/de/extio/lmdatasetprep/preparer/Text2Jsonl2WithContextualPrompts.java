@@ -32,7 +32,7 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 	@Override
 	public void accept(final String[] args) {
 		if (args.length < 6) {
-			LOGGER.error("Arguments are missing. <Path to text files> <Path to output dir> <variations> (<chunk norm> <chunk var>, ...)");
+			LOGGER.error("Arguments are missing. <Path to text files> <Path to output dir> <variations> [<chunk norm> <chunk var>, ...]");
 			return;
 		}
 		final int variations = Integer.parseInt(args[3]);
@@ -57,7 +57,7 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 							String.valueOf(i),
 							".jsonl");
 					if (Files.exists(out)) {
-						LOGGER.info("Skipping " + out);
+						LOGGER.info("Skipping {}", out);
 						continue;
 					}
 					

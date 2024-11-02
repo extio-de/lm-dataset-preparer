@@ -19,9 +19,11 @@ import org.slf4j.LoggerFactory;
 
 public class Utils {
 	
+	private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
+	
 	private static final List<String> PARAGRAPH_DELIMITERS = List.of("\n\n", "\n", ".", "!", "?");
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
+	private static final int EXECUTORS = 4;
 	
 	static String normalizeText(final String text) {
 		String result = text;
@@ -92,7 +94,7 @@ public class Utils {
 			if (slidingWindows && pos > chunks_var) {
 				for (final String delimiter : PARAGRAPH_DELIMITERS) {
 					final int o = text.indexOf(delimiter, pos - chunks_var);
-					if (o > -1 && o < pos - (PARAGRAPH_DELIMITERS.size() * 2)) {
+					if (o > -1 && o < pos - 10) {
 						pos = o + delimiter.length();
 						break;
 					}
@@ -113,33 +115,31 @@ public class Utils {
 	}
 	
 	static void transformDirectory(final String path, final Function<Path, List<Runnable>> createTasks) {
-		final int EXECUTORS = 4;
+		final AtomicBoolean finished = new AtomicBoolean(false);
 		
-		try (Stream<Path> stream = Files.list(Paths.get(path))) {
-			final AtomicBoolean finished = new AtomicBoolean(false);
-			
-			final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>(EXECUTORS * 2);
-			
-			final List<Thread> threads = new ArrayList<>(EXECUTORS);
-			for (int i = 0; i < EXECUTORS; i++) {
-				final Thread executor = new Thread(() -> {
-					while (!Thread.interrupted() && !finished.get()) {
-						try {
-							final Runnable task = tasks.poll(1, TimeUnit.SECONDS);
-							if (task != null) {
-								task.run();
-							}
-						}
-						catch (final InterruptedException e) {
-							break;
+		final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>(EXECUTORS * 2);
+		
+		final List<Thread> threads = new ArrayList<>(EXECUTORS);
+		for (int i = 0; i < EXECUTORS; i++) {
+			final Thread executor = new Thread(() -> {
+				while (!Thread.interrupted() && !finished.get()) {
+					try {
+						final Runnable task = tasks.poll(1, TimeUnit.SECONDS);
+						if (task != null) {
+							task.run();
 						}
 					}
-				});
-				executor.setName("Executor " + i);
-				executor.start();
-				threads.add(executor);
-			}
-			
+					catch (final InterruptedException e) {
+						break;
+					}
+				}
+			});
+			executor.setName("Executor " + i);
+			executor.start();
+			threads.add(executor);
+		}
+		
+		try (Stream<Path> stream = Files.list(Paths.get(path))) {
 			stream
 					.filter(p -> Files.isRegularFile(p))
 					.forEach(p -> {
@@ -152,18 +152,28 @@ public class Utils {
 							}
 						}
 					});
-			
-			while (!tasks.isEmpty()) {
+		}
+		catch (final IOException e) {
+			LOGGER.error("Error", e);
+		}
+		
+		while (!tasks.isEmpty()) {
+			try {
 				Thread.sleep(1);
 			}
-			finished.set(true);
-			
-			for (int i = 0; i < EXECUTORS; i++) {
-				threads.get(i).join();
+			catch (final InterruptedException e) {
+				LOGGER.error("Interrupted", e);
 			}
 		}
-		catch (final IOException | InterruptedException e) {
-			LOGGER.error("Error", e);
+		finished.set(true);
+		
+		for (int i = 0; i < EXECUTORS; i++) {
+			try {
+				threads.get(i).join();
+			}
+			catch (final InterruptedException e) {
+				LOGGER.error("Interrupted", e);
+			}
 		}
 	}
 	
