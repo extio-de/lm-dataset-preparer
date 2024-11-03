@@ -102,8 +102,12 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 		
 		String prompt = completion.response();
 		final int colon = prompt.indexOf(':');
-		if (colon > -1 && colon > prompt.length() + 1) {
+		if (colon > -1 && colon < prompt.length() + 1) {
 			prompt = prompt.substring(colon + 1);
+		}
+		final int preamble = prompt.indexOf("\n\n");
+		if (preamble > -1 && preamble < prompt.length() + 2) {
+			prompt = prompt.substring(preamble + 2);
 		}
 		prompt = prompt.trim();
 		
