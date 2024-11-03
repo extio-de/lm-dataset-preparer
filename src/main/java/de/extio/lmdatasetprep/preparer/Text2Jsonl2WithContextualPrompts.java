@@ -95,12 +95,19 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 	}
 	
 	private QaLine paragraphToContextualPrompt(final String paragraph) {
-		final var completion = this.client.completion("You are an assistant with great authoring skills.",
-				"Enhance the given text by crafting a prompt that effectively provides additional context, enabling the language model to better understand the subject matter and generate more informative and relevant responses. This prompt should be clear, concise, and tailored to facilitate contextual learning, allowing the model to grasp the essential details and nuances of the topic. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
+		final var completion = this.client.completion("You are an assistant with great text rewriting skills.",
+				"Rewrite the following text as a user prompt. Include all essential details, enabling the user to better understand the subject matter. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
 				paragraph,
 				ModelCategory.COLD);
-		String q = completion.response().replace("Prompt:", "").trim();
-		final var qaLine = new QaLine(q, paragraph);
+		
+		String prompt = completion.response();
+		final int colon = prompt.indexOf(':');
+		if (colon > -1 && colon > prompt.length() + 1) {
+			prompt = prompt.substring(colon + 1);
+		}
+		prompt = prompt.trim();
+		
+		final var qaLine = new QaLine(prompt, paragraph);
 		return qaLine;
 	}
 	
