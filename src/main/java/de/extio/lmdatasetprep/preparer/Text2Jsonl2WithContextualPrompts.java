@@ -63,9 +63,19 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 					
 					tasks.add(() -> {
 						try (var fos = Files.newOutputStream(out)) {
-							for (final String paragraph : paragraphs) {
-								LOGGER.info("Paragraph " + paragraphs.indexOf(paragraph) + "/" + paragraphs.size());
-								final var qaLine = this.paragraphToContextualPrompt(paragraph);
+							for (int j = 0; j < paragraphs.size(); j++) {
+								LOGGER.info("Paragraph " + (j + 1) + "/" + paragraphs.size());
+								
+								final var paragraph = paragraphs.get(j);
+								final var prompt = this.paragraphToContextualPrompt(paragraph);
+								QaLine qaLine;
+								if (j < paragraphs.size() - 1) {
+									qaLine = new QaLine(prompt, paragraphs.get(j) + "\n\n" + paragraphs.get(j + 1));
+								}
+								else {
+									qaLine = new QaLine(prompt, paragraphs.get(j));
+								}
+								
 								this.writeJsonLine(mapper, fos, qaLine);
 							}
 						}
@@ -91,12 +101,12 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 			throw new RuntimeException("Cannot read file", e);
 		}
 		
-		return Utils.splitParagraphs(text, chunkNorm, chunkVar, true);
+		return Utils.splitParagraphs(text, chunkNorm, chunkVar, false);
 	}
 	
-	private QaLine paragraphToContextualPrompt(final String paragraph) {
+	private String paragraphToContextualPrompt(final String paragraph) {
 		final var completion = this.client.completion("You are an assistant with great text rewriting skills.",
-				"Rewrite the following text as a user prompt. Include all essential details, enabling the user to better understand the subject matter. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
+				"Rewrite the following text as a user prompt. Include all essential details, enabling the user to better understand the subject matter. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:",
 				paragraph,
 				ModelCategory.COLD);
 		
@@ -111,8 +121,7 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]> {
 		}
 		prompt = prompt.trim();
 		
-		final var qaLine = new QaLine(prompt, paragraph);
-		return qaLine;
+		return prompt;
 	}
 	
 	private void writeJsonLine(final ObjectMapper mapper, final OutputStream fos, final QaLine qaLine) {
