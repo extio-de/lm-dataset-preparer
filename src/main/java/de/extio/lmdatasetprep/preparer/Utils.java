@@ -79,8 +79,20 @@ public class Utils {
 			int delLength = 1;
 			if (text.length() - pos > CHUNKS_MAX) {
 				for (final String delimiter : PARAGRAPH_DELIMITERS) {
-					final int o = text.indexOf(delimiter, pos + CHUNKS_MIN);
-					if (o > -1 && o <= pos + CHUNKS_MAX) {
+					final int oForw = text.substring(Math.min(pos + chunks_norm, text.length()), Math.min(pos + CHUNKS_MAX, text.length())).indexOf(delimiter);
+					final int oBack = text.substring(Math.min(pos + CHUNKS_MIN, text.length()), Math.min(pos + chunks_norm, text.length())).lastIndexOf(delimiter);
+					int o = -1;
+					if (oForw > -1 && oBack == -1) {
+						o = pos + chunks_norm + oForw;
+					}
+					else if (oForw == -1 && oBack > -1) {
+						o = pos + CHUNKS_MIN + oBack;
+					}
+					else if (oForw > -1 && oBack > -1) {
+						o = oForw <= (chunks_var - oBack) ? pos + chunks_norm + oForw : pos + CHUNKS_MIN + oBack;
+					}
+					
+					if (o > -1) {
 						next = o;
 						delLength = delimiter.length();
 						break;
