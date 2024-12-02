@@ -161,7 +161,7 @@ public class Text2Jsonl2WithContextualPrompts implements Consumer<String[]>, Ini
 			return Map.of();
 		}
 		
-		LOGGER.info(mapping.toString());
+		LOGGER.debug(mapping.toString());
 		return mapping;
 	}
 	
