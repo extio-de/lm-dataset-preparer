@@ -115,7 +115,7 @@ public class Rewrite implements Consumer<String[]> {
 		final List<String> splits = Utils.splitParagraphs(text, 1250, 350, false);
 		
 		for (final String split : splits) {
-			LOGGER.info("Split " + splits.indexOf(split) + "/" + splits.size());
+			LOGGER.info("Split " + (splits.indexOf(split) + 1) + "/" + splits.size());
 			final var completion = this.client.completion("You are a helpful assistant with great authoring skills.",
 					prompt,
 					split,
@@ -123,5 +123,4 @@ public class Rewrite implements Consumer<String[]> {
 			consumer.accept(completion.response());
 		}
 	}
-	
 }

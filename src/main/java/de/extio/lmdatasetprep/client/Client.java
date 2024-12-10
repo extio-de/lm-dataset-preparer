@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
@@ -26,7 +27,7 @@ import de.extio.lmdatasetprep.client.prompt.PromptStrategy;
 import de.extio.lmdatasetprep.client.prompt.PromptStrategyFactory;
 
 @Component
-public class Client {
+public class Client implements DisposableBean {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Client.class);
 	
@@ -49,6 +50,8 @@ public class Client {
 	private boolean collectStatistics;
 	
 	private final Map<String, Integer> promptTemplateTokenLengths = new ConcurrentHashMap<>();
+	
+	private final CompletionStatistics totalStatistics = new CompletionStatistics();
 	
 	public Completion completion(final String instruction, final String question, final String fullText, final ModelCategory modelCategory) {
 		final var modelProfile = this.modelProfileService.getModelProfile(modelCategory.getModelProfile());
@@ -129,7 +132,11 @@ public class Client {
 			}
 			
 			if (this.collectStatistics) {
-				statistics.add(Duration.between(start, LocalDateTime.now()), this.tokenizer.count(promptStr, modelProfile), this.tokenizer.count(content, modelProfile));
+				final var dur = Duration.between(start, LocalDateTime.now());
+				final var in = this.tokenizer.count(promptStr, modelProfile);
+				final var out = this.tokenizer.count(content, modelProfile);
+				statistics.add(dur, in, out);
+				this.totalStatistics.add(dur, in, out);
 			}
 			
 			answer.append(content);
@@ -172,17 +179,24 @@ public class Client {
 		});
 	}
 	
+	@Override
+	public void destroy() throws Exception {
+		if (this.collectStatistics) {
+			LOGGER.info("Client Statistics: {}", this.totalStatistics);
+		}
+	}
+	
 	static class CompletionStatistics {
 		
-		int requests;
+		volatile int requests;
 		
-		Duration duration = Duration.ofMillis(0l);
+		volatile Duration duration = Duration.ofMillis(0l);
 		
-		long inTokens;
+		volatile long inTokens;
 		
-		long outTokens;
+		volatile long outTokens;
 		
-		void add(final Duration duration, final int inTokens, final int outTokens) {
+		synchronized void add(final Duration duration, final int inTokens, final int outTokens) {
 			LOGGER.debug("Request duration: " + duration + "; in tokens: " + inTokens + "; out tokens: " + outTokens);
 			
 			this.requests++;
@@ -190,6 +204,22 @@ public class Client {
 			this.inTokens += inTokens;
 			this.outTokens += outTokens;
 		}
+		
+		@Override
+		public String toString() {
+			final StringBuilder builder = new StringBuilder();
+			builder.append("CompletionStatistics [requests=");
+			builder.append(this.requests);
+			builder.append(", duration=");
+			builder.append(this.duration);
+			builder.append(", inTokens=");
+			builder.append(this.inTokens);
+			builder.append(", outTokens=");
+			builder.append(this.outTokens);
+			builder.append("]");
+			return builder.toString();
+		}
+		
 	}
 	
 }
