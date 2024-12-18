@@ -16,7 +16,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
-public class Text2Jsonl implements Consumer<String[]> {
+public class Text2Jsonl implements Consumer<String[]>, DatasetTool {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Text2Jsonl.class);
 	

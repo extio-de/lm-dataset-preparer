@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
-public class MergeJsonl implements Consumer<String[]> {
+public class MergeJsonl implements Consumer<String[]>, DatasetTool {
 	
 	private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
 	

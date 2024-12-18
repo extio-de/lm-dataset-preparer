@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
-public class Text2Jsonl2WithContextualPrompts extends AbstractContextualPrompts {
+public class Text2Jsonl2WithContextualPrompts extends AbstractContextualPrompts implements DatasetTool {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Text2Jsonl2WithContextualPrompts.class);
 	

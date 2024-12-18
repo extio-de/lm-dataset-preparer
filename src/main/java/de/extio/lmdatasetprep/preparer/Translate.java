@@ -17,7 +17,7 @@ import de.extio.lmlib.client.ClientService;
 import de.extio.lmlib.profile.ModelCategory;
 
 @Component
-public class Translate implements Consumer<String[]> {
+public class Translate implements Consumer<String[]>, DatasetTool {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Translate.class);
 	
