@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -15,16 +15,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import de.extio.lmdatasetprep.XorShift128Random;
-import de.extio.lmdatasetprep.client.Client;
-import de.extio.lmdatasetprep.client.profile.ModelCategory;
+import de.extio.lmlib.client.ClientService;
+import de.extio.lmlib.profile.ModelCategory;
 
 @Component
 public class Rewrite implements Consumer<String[]> {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Rewrite.class);
-	
-	private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(XorShift128Random::new);
 	
 	private static final byte[] PARAGRAPH = "\n\n".getBytes(StandardCharsets.UTF_8);
 	
@@ -50,7 +47,7 @@ public class Rewrite implements Consumer<String[]> {
 			"Imbue the setting with a sense of timelessness or age through subtle phrasing and word choice");
 	
 	@Autowired
-	private Client client;
+	private ClientService clientService;
 	
 	@Override
 	public void accept(final String[] args) {
@@ -65,7 +62,7 @@ public class Rewrite implements Consumer<String[]> {
 					tasks.add(() -> this.rewriteFile(args, f, 0, "impr", ModelCategory.COLD, IMPROVEMENT_PROMPT));
 					for (int i = 0; i < Integer.parseInt(args[3]); i++) {
 						final int fi = i;
-						tasks.add(() -> this.rewriteFile(args, f, fi, "enh", ModelCategory.COLD, String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(RANDOM.get().nextInt(ENHANCEMENTS.size())))));
+						tasks.add(() -> this.rewriteFile(args, f, fi, "enh", ModelCategory.COLD, String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
 					}
 					return tasks;
 				});
@@ -116,10 +113,10 @@ public class Rewrite implements Consumer<String[]> {
 		
 		for (final String split : splits) {
 			LOGGER.info("Split " + (splits.indexOf(split) + 1) + "/" + splits.size());
-			final var completion = this.client.completion("You are a helpful assistant with great authoring skills.",
+			final var completion = this.clientService.getClient(modelCategory).completion(modelCategory,
+					"You are a helpful assistant with great authoring skills.",
 					prompt,
-					split,
-					modelCategory);
+					split);
 			consumer.accept(completion.response());
 		}
 	}

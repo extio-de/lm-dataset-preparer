@@ -13,8 +13,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import de.extio.lmdatasetprep.client.Client;
-import de.extio.lmdatasetprep.client.profile.ModelCategory;
+import de.extio.lmlib.client.ClientService;
+import de.extio.lmlib.profile.ModelCategory;
 
 @Component
 public class Translate implements Consumer<String[]> {
@@ -24,7 +24,7 @@ public class Translate implements Consumer<String[]> {
 	private static final byte[] PARAGRAPH = "\n\n".getBytes(StandardCharsets.UTF_8);
 	
 	@Autowired
-	private Client client;
+	private ClientService clientService;
 	
 	@Override
 	public void accept(final String[] args) {
@@ -77,10 +77,10 @@ public class Translate implements Consumer<String[]> {
 		
 		for (final String split : splits) {
 			LOGGER.info("Split " + splits.indexOf(split) + "/" + splits.size());
-			final var completion = this.client.completion("You are an assistant with great language translation and authoring skills.",
+			final var completion = this.clientService.getClient(ModelCategory.COLD).completion(ModelCategory.COLD,
+					"You are an assistant with great language translation and authoring skills.",
 					"Translate the following text to English. Return the English translation, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
-					split,
-					ModelCategory.COLD);
+					split);
 			consumer.accept(completion.response());
 		}
 	}

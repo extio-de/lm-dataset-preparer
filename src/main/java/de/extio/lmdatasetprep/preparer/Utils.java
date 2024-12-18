@@ -17,13 +17,13 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.extio.lmdatasetprep.LmDatasetPreparerApplication;
+
 public class Utils {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
 	
 	private static final List<String> PARAGRAPH_DELIMITERS = List.of("\n\n", "\n", ".", "!", "?");
-	
-	private static final int EXECUTORS = 4;
 	
 	static String normalizeText(final String text) {
 		String result = text;
@@ -127,8 +127,8 @@ public class Utils {
 	}
 	
 	static void transformDirectory(final String path, final Function<Path, List<Runnable>> createTasks) {
+		final int EXECUTORS = Integer.parseInt(LmDatasetPreparerApplication.applicationContext.getEnvironment().getProperty("agent.threads"));
 		final AtomicBoolean finished = new AtomicBoolean(false);
-		
 		final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>(EXECUTORS * 2);
 		
 		final List<Thread> threads = new ArrayList<>(EXECUTORS);

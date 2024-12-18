@@ -7,13 +7,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import de.extio.lmdatasetprep.XorShift128Random;
 
 @Component
 public class MergeJsonl implements Consumer<String[]> {
@@ -42,7 +41,7 @@ public class MergeJsonl implements Consumer<String[]> {
 			});
 		});
 		
-		Collections.shuffle(lines, new XorShift128Random());
+		Collections.shuffle(lines, ThreadLocalRandom.current());
 		
 		final Path out = Path.of(args[2], "dataset-merged.jsonl");
 		try (var fos = Files.newOutputStream(out)) {

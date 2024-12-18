@@ -11,9 +11,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
 @EnableCaching
+@ComponentScan(basePackages = { "de.extio.lmdatasetprep", "de.extio.lmlib" })
 public class LmDatasetPreparerApplication implements CommandLineRunner, ApplicationContextAware {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(LmDatasetPreparerApplication.class);
@@ -22,7 +24,7 @@ public class LmDatasetPreparerApplication implements CommandLineRunner, Applicat
 		SpringApplication.run(LmDatasetPreparerApplication.class, args);
 	}
 	
-	private ApplicationContext applicationContext;
+	public static ApplicationContext applicationContext;
 	
 	@SuppressWarnings("unchecked")
 	@Override
@@ -32,9 +34,9 @@ public class LmDatasetPreparerApplication implements CommandLineRunner, Applicat
 			return;
 		}
 		
-		final var bean = this.applicationContext.getBean(args[0]);
+		final var bean = applicationContext.getBean(args[0]);
 		if (!(bean instanceof Consumer)) {
-			LOGGER.info("Invalid bean {}", args[0]);
+			LOGGER.error("Invalid bean {}", args[0]);
 			return;
 		}
 		
@@ -42,14 +44,14 @@ public class LmDatasetPreparerApplication implements CommandLineRunner, Applicat
 		try {
 			((Consumer<String[]>) bean).accept(args);
 		}
-		catch (Exception e) {
+		catch (final Exception e) {
 			LOGGER.error("Error executing the component", e);
 		}
 	}
 	
 	@Override
-	public void setApplicationContext(final ApplicationContext applicationContext) throws BeansException {
-		this.applicationContext = applicationContext;
+	public void setApplicationContext(final ApplicationContext appContext) throws BeansException {
+		applicationContext = appContext;
 	}
 	
 }

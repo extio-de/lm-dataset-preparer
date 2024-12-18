@@ -11,7 +11,8 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>		
 		<springdoc.version>2.5.0</springdoc.version>
-		<spring-boot.version>3.3.4</spring-boot.version>
+		<spring-boot.version>3.4.0</spring-boot.version>
+		<lmlib.version>1.0.0-SNAPSHOT</lmlib.version>
 	</properties>
 	
 	<dependencyManagement>
@@ -35,6 +36,12 @@
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>
 		</dependency>
+
+        <dependency>
+            <groupId>de.extio</groupId>
+            <artifactId>lm-lib</artifactId>
+            <version>${lmlib.version}</version>
+        </dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
