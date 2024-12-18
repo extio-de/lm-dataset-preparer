@@ -1,23 +1,23 @@
 # lm-dataset-preparer
 
-This program is a comprehensive text processing pipeline designed for preparing and enhancing textual data. 
+This program suite is designed for processing and transforming text data, primarily focusing on tasks related to translation, rewriting, and question-answer generation. 
 
-**Here's a breakdown of its functionality:**
+**Core Functionality:**
 
-1. **Translation:** The program can translate text files from various languages to English using a language model client.
+* **Text Translation:** Translates text files from various languages to English using a translation service.
+* **Text Rewriting:** Rewrites text using a language model, offering different modes like improvement and enhancement.
+* **Text Structuring:** Converts text files into JSON Lines format, splitting text into paragraphs and serializing them as JSON objects.
+* **Contextual Prompt Generation:** Generates contextual prompts based on text paragraphs, useful for tasks like summarization or question answering.
 
-2. **Text Processing and Manipulation:** The `Utils` class provides tools for normalizing text, splitting it into paragraphs, and managing files and filenames.
+**Additional Features:**
 
-3. **Text Rewriting:** This component leverages a language model to improve and enhance the quality of text. It splits text into paragraphs, sends them to the model with specific prompts, and combines the rewritten paragraphs into a new file.
-
-4. **JSON Conversion:** The program can convert text files into JSON Lines (JSONL) format, with each paragraph represented as a JSON object.
-
-5. **Contextual Prompt Generation:** This module generates contextual prompts based on text paragraphs, extracts names from the text, and creates variations of those names. The generated prompts and paragraphs are stored in JSONL files.
-
-6. **File Merging:** The program can merge multiple JSONL files into a single output file, facilitating data aggregation.
+* **File Manipulation:** Includes utilities for file processing, such as renaming, directory transformation, and suffix addition.
+* **Character Name Processing:**  Allows renaming characters within text and generating prompts based on the modified text using a language model.
+* **Question-Answer Generation:** Creates question-answer pairs from text, framing each paragraph as a concise instruction.
+* **Dataset Processing:** Provides a framework for tools to process datasets in a standardized manner.
 
 **Purpose:**
 
-The overall purpose of this program is to provide a versatile toolkit for preparing text data for various downstream tasks, such as machine learning model training, text analysis, and content creation. The program's capabilities in translation, rewriting, JSON conversion, prompt generation, and file merging make it suitable for a wide range of text processing applications.
+The program suite aims to streamline text processing workflows for various NLP tasks. Its modular design allows for flexible customization and integration into larger applications. The focus on JSON Lines output facilitates compatibility with other tools and downstream processing pipelines.
 
-*[gemma-2-27b-it-Q4_K_L.gguf; requests=7, requestDuration=PT2M40.547239104S, inTokens=8437, outTokens=605, tps=3.78125]*
+*[gemma-2-27b-it-Q4_K_L.gguf; requests=10, requestDuration=PT1M13.710250739S, inTokens=9963, outTokens=734, tps=10.054794520547945]*
