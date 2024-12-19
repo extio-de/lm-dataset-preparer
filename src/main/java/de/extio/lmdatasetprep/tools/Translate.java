@@ -17,7 +17,6 @@ import de.extio.lmdatasetprep.Execution;
 import de.extio.lmdatasetprep.Execution.WorkPacket;
 import de.extio.lmdatasetprep.TextUtils;
 import de.extio.lmlib.client.ClientService;
-import de.extio.lmlib.profile.ModelCategory;
 
 @Component
 public class Translate implements DatasetTool {
@@ -30,13 +29,18 @@ public class Translate implements DatasetTool {
 	private ClientService clientService;
 	
 	@Override
+	public String getModelCategoryPropertyName() {
+		return "translate.category";
+	}
+	
+	@Override
 	public void accept(final Properties properties) {
 		Execution.transform(properties.getProperty("translate.source"), p -> {
 			return List.of(() -> {
 				final Path out = Execution.suffixFilename(p.file().getFileName(), "en");
 				Execution.streamOut(out, "translate.destination", properties, fos -> {
 					final AtomicBoolean first = new AtomicBoolean(true);
-					this.translate(p, chunk -> {
+					this.translate(p, properties, chunk -> {
 						try {
 							if (!first.getAndSet(false)) {
 								fos.write(PARAGRAPH);
@@ -52,16 +56,18 @@ public class Translate implements DatasetTool {
 		});
 	}
 	
-	void translate(final WorkPacket packet, final Consumer<String> consumer) {
+	void translate(final WorkPacket packet, final Properties properties, final Consumer<String> consumer) {
 		LOGGER.info("Translating " + packet.file());
 		
 		final String text = TextUtils.normalizeText(packet.text());
 		
 		final List<String> splits = TextUtils.splitParagraphs(text, 1250, 350, false);
 		
+		final var client = this.getClient(properties, this.clientService);
+		
 		for (final String split : splits) {
 			LOGGER.info("Split " + (splits.indexOf(split) + 1) + "/" + splits.size());
-			final var completion = this.clientService.getClient(ModelCategory.COLD).completion(ModelCategory.COLD,
+			final var completion = client.completion(this.getModelCategory(properties),
 					"You are an assistant with great language translation and authoring skills.",
 					"Translate the following text to English. Return the English translation, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:",
 					split);

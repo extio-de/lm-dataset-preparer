@@ -41,8 +41,8 @@ public class Text2Jsonl2HistoryInstructCompletion extends AbstractContextualProm
 								LOGGER.info("Paragraph " + (j + 1) + "/" + paragraphs.size());
 								
 								final var inScope = String.join("\n", paragraphs.subList(j - 1, j));
-								final var mapping = this.createCharacterNameMapping(inScope);
-								final var instruct = this.createPrompt(this.renameCharacters(paragraphs.get(j), mapping), "Rewrite the following story as a concise instruction in a single paragraph. Return the instruction, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+								final var mapping = this.createCharacterNameMapping(inScope, properties);
+								final var instruct = this.createPrompt(properties, this.renameCharacters(paragraphs.get(j), mapping), "Rewrite the following story as a concise instruction in a single paragraph. Return the instruction, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
 								final var qaLine = new QaLine(this.renameCharacters(paragraphs.get(j - 1), mapping), instruct, this.renameCharacters(paragraphs.get(j), mapping));
 								
 								this.writeJsonLine(mapper, fos, qaLine);

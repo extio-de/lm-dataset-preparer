@@ -27,7 +27,6 @@ import de.extio.lmdatasetprep.Execution;
 import de.extio.lmdatasetprep.Execution.WorkPacket;
 import de.extio.lmdatasetprep.TextUtils;
 import de.extio.lmlib.client.ClientService;
-import de.extio.lmlib.profile.ModelCategory;
 
 abstract class AbstractContextualPrompts implements InitializingBean, DatasetTool {
 	
@@ -41,6 +40,11 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 	private List<String> maleNames = new ArrayList<>();
 	
 	private List<String> femaleNames = new ArrayList<>();
+	
+	@Override
+	public String getModelCategoryPropertyName() {
+		return "contextualPrompts.category";
+	}
 	
 	@Override
 	public void afterPropertiesSet() throws Exception {
@@ -80,8 +84,8 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 		return TextUtils.splitParagraphs(text, chunkNorm, chunkVar, false);
 	}
 	
-	protected Map<String, String> createCharacterNameMapping(final String paragraph) {
-		final var completion = this.clientService.getClient(ModelCategory.COLD).completion(ModelCategory.COLD,
+	protected Map<String, String> createCharacterNameMapping(final String paragraph, final Properties properties) {
+		final var completion = this.getClient(properties, this.clientService).completion(this.getModelCategory(properties),
 				"You are a helpful assistant.",
 				"Extract all names and genders from the following text. Return the result in json format with the following fields: {\"males\" : [ \"Male name 1\", \"Male name 2\", … ], \"females\" : [ \"Female name 1\", \"Female name 2\", … ]}. Don't return a preamble and no explanation:",
 				paragraph);
@@ -129,8 +133,8 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 		return result;
 	}
 	
-	protected String createPrompt(final String paragraph, final String instruction) {
-		final var completion = this.clientService.getClient(ModelCategory.COLD).completion(ModelCategory.COLD,
+	protected String createPrompt(final Properties properties, final String paragraph, final String instruction) {
+		final var completion = this.getClient(properties, this.clientService).completion(this.getModelCategory(properties),
 				"You are an assistant with great text writing skills.",
 				instruction,
 				paragraph);

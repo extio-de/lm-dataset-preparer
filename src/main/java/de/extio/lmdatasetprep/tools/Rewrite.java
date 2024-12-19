@@ -19,7 +19,6 @@ import de.extio.lmdatasetprep.Execution;
 import de.extio.lmdatasetprep.Execution.WorkPacket;
 import de.extio.lmdatasetprep.TextUtils;
 import de.extio.lmlib.client.ClientService;
-import de.extio.lmlib.profile.ModelCategory;
 
 @Component
 public class Rewrite implements DatasetTool {
@@ -53,32 +52,36 @@ public class Rewrite implements DatasetTool {
 	private ClientService clientService;
 	
 	@Override
+	public String getModelCategoryPropertyName() {
+		return "rewrite.category";
+	}
+	
+	@Override
 	public void accept(final Properties properties) {
 		Execution.transform(properties.getProperty("rewrite.source"),
 				packet -> {
 					final List<Runnable> tasks = new ArrayList<>();
-					tasks.add(() -> this.rewriteFile(properties, packet, 0, "impr", ModelCategory.COLD, IMPROVEMENT_PROMPT));
+					tasks.add(() -> this.rewriteFile(properties, packet, 0, "impr", IMPROVEMENT_PROMPT));
 					for (int i = 0; i < Integer.parseInt(properties.getProperty("rewrite.cnt")); i++) {
 						final int fi = i;
-						tasks.add(() -> this.rewriteFile(properties, packet, fi, "enh", ModelCategory.COLD, String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
+						tasks.add(() -> this.rewriteFile(properties, packet, fi, "enh", String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
 					}
 					return tasks;
 				});
 	}
 	
-	private void rewriteFile(final Properties properties, final WorkPacket packet, final int i, final String identifier, final ModelCategory modelCategory, final String prompt) {
+	private void rewriteFile(final Properties properties, final WorkPacket packet, final int i, final String identifier, final String prompt) {
 		final Path out = Execution.suffixFilename(packet.file(),
 				"rewr",
 				properties.getProperty("rewrite.model"),
 				identifier,
-				modelCategory.toString().toLowerCase(),
 				String.valueOf(i));
 		
-		LOGGER.info("Rewriting " + packet.file().getFileName() + " " + identifier + " " + modelCategory.name() + " " + i);
+		LOGGER.info("Rewriting " + packet.file().getFileName() + " " + identifier + " " + " " + i);
 		
 		Execution.streamOut(out, "rewrite.destination", properties, fos -> {
 			final AtomicBoolean first = new AtomicBoolean(true);
-			this.rewrite(packet, prompt, modelCategory, chunk -> {
+			this.rewrite(packet, prompt, properties, chunk -> {
 				try {
 					if (!first.getAndSet(false)) {
 						fos.write(PARAGRAPH);
@@ -92,12 +95,13 @@ public class Rewrite implements DatasetTool {
 		});
 	}
 	
-	void rewrite(final WorkPacket packet, final String prompt, final ModelCategory modelCategory, final Consumer<String> consumer) {
+	void rewrite(final WorkPacket packet, final String prompt, final Properties properties, final Consumer<String> consumer) {
 		final String text = TextUtils.normalizeText(packet.text());
 		final List<String> splits = TextUtils.splitParagraphs(text, 1250, 350, false);
+		final var client = this.getClient(properties, this.clientService);
 		for (final String split : splits) {
 			LOGGER.info("Split " + (splits.indexOf(split) + 1) + "/" + splits.size());
-			final var completion = this.clientService.getClient(modelCategory).completion(modelCategory,
+			final var completion = client.completion(this.getModelCategory(properties),
 					"You are a helpful assistant with great authoring skills.",
 					prompt,
 					split);
