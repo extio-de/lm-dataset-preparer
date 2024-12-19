@@ -1,9 +1,9 @@
-package de.extio.lmdatasetprep.preparer;
+package de.extio.lmdatasetprep.tools;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,13 +11,15 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import de.extio.lmdatasetprep.Execution;
+
 @Component
-public class Text2Jsonl2HistoryInstructCompletion extends AbstractContextualPrompts implements DatasetTool {
+public class Text2Jsonl2HistoryInstructCompletion extends AbstractContextualPrompts {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Text2Jsonl2HistoryInstructCompletion.class);
 	
 	@Override
-	protected CreateTasks createTasks(final String[] args, final List<ChunkCfg> chunkConfigurations, final int variations) {
+	protected CreateTasks createTasks(final Properties properties, final List<ChunkCfg> chunkConfigurations, final int variations) {
 		return p -> {
 			final ObjectMapper mapper = new ObjectMapper();
 			final List<Runnable> tasks = new ArrayList<>();
@@ -26,19 +28,15 @@ public class Text2Jsonl2HistoryInstructCompletion extends AbstractContextualProm
 				final List<String> paragraphs = this.fileToParagraphs(p, chunkCfg.chunksNorm(), chunkCfg.chunksVar());
 				
 				for (int i = 0; i < variations; i++) {
-					final Path out = Utils.suffixFilename(Path.of(args[2]).resolve(p.getFileName()),
+					final Path out = Execution.suffixFilename(p.file().getFileName(),
 							"histinstrcompl",
-							args[3],
+							properties.getProperty("contextualPrompts.model"),
 							String.valueOf(chunkCfg.chunksNorm()),
 							String.valueOf(i),
 							".jsonl");
-					if (Files.exists(out)) {
-						LOGGER.info("Skipping {}", out);
-						continue;
-					}
 					
 					tasks.add(() -> {
-						Utils.streamOut(out, fos -> {
+						Execution.streamOut(out, "contextualPrompts.destination", properties, fos -> {
 							for (int j = 1; j < paragraphs.size(); j++) {
 								LOGGER.info("Paragraph " + (j + 1) + "/" + paragraphs.size());
 								

@@ -1,19 +1,17 @@
-package de.extio.lmdatasetprep.preparer;
+package de.extio.lmdatasetprep.tools;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -25,10 +23,13 @@ import org.springframework.core.io.ClassPathResource;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import de.extio.lmdatasetprep.Execution;
+import de.extio.lmdatasetprep.Execution.WorkPacket;
+import de.extio.lmdatasetprep.TextUtils;
 import de.extio.lmlib.client.ClientService;
 import de.extio.lmlib.profile.ModelCategory;
 
-abstract class AbstractContextualPrompts implements InitializingBean, Consumer<String[]> {
+abstract class AbstractContextualPrompts implements InitializingBean, DatasetTool {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractContextualPrompts.class);
 	
@@ -48,42 +49,35 @@ abstract class AbstractContextualPrompts implements InitializingBean, Consumer<S
 	}
 	
 	@Override
-	public void accept(final String[] args) {
-		if (args.length < 7) {
-			LOGGER.error("Arguments are missing. <Path to text files> <Path to output dir> <model prefix> <variations> [<chunk norm> <chunk var>, ...]");
-			return;
-		}
-		final int variations = Integer.parseInt(args[4]);
+	public void accept(final Properties properties) {
+		final int variations = Integer.parseInt(properties.getProperty("contextualPrompts.variations"));
 		final List<ChunkCfg> chunkConfigurations = new ArrayList<>();
-		for (int i = 5; i < args.length; i += 2) {
-			final var cfg = new ChunkCfg(Integer.parseInt(args[i]), Integer.parseInt(args[i + 1]));
+		for (int i = 0; i < 99; i++) {
+			final String chunkNorm = properties.getProperty("contextualPrompts.chunkNorm." + i, "");
+			if (chunkNorm.isBlank()) {
+				break;
+			}
+			final String chunkVar = properties.getProperty("contextualPrompts.chunkVar." + i, "");
+			final var cfg = new ChunkCfg(Integer.parseInt(chunkNorm), Integer.parseInt(chunkVar));
 			chunkConfigurations.add(cfg);
 		}
 		
-		Utils.transformDirectory(args[1], this.createTasks(args, chunkConfigurations, variations)::createTasks);
+		Execution.transform(properties.getProperty("contextualPrompts.source"), this.createTasks(properties, chunkConfigurations, variations)::createTasks);
 	}
 	
 	@FunctionalInterface
 	static interface CreateTasks {
 		
-		List<Runnable> createTasks(Path path);
+		List<Runnable> createTasks(WorkPacket packet);
 		
 	}
 	
-	protected abstract CreateTasks createTasks(String[] args, List<ChunkCfg> chunkConfigurations, int variations);
+	protected abstract CreateTasks createTasks(Properties properties, List<ChunkCfg> chunkConfigurations, int variations);
 	
-	protected List<String> fileToParagraphs(final Path file, final int chunkNorm, final int chunkVar) {
-		LOGGER.info("Splitting to jsonl " + file + " -> " + chunkNorm + "±" + chunkVar);
-		
-		String text;
-		try {
-			text = Utils.normalizeText(Files.readString(file));
-		}
-		catch (final IOException e) {
-			throw new RuntimeException("Cannot read file", e);
-		}
-		
-		return Utils.splitParagraphs(text, chunkNorm, chunkVar, false);
+	protected List<String> fileToParagraphs(final WorkPacket packet, final int chunkNorm, final int chunkVar) {
+		LOGGER.info("Splitting to jsonl " + packet.file() + " -> " + chunkNorm + "±" + chunkVar);
+		final String text = TextUtils.normalizeText(packet.text());
+		return TextUtils.splitParagraphs(text, chunkNorm, chunkVar, false);
 	}
 	
 	protected Map<String, String> createCharacterNameMapping(final String paragraph) {
@@ -141,7 +135,7 @@ abstract class AbstractContextualPrompts implements InitializingBean, Consumer<S
 				instruction,
 				paragraph);
 		
-		return Utils.normalizeModelResponse(completion.response(), true);
+		return TextUtils.normalizeModelResponse(completion.response(), true);
 	}
 	
 	protected void writeJsonLine(final ObjectMapper mapper, final OutputStream fos, final Object line) {

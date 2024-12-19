@@ -1,11 +1,11 @@
-package de.extio.lmdatasetprep.preparer;
+package de.extio.lmdatasetprep.tools;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -15,11 +15,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import de.extio.lmdatasetprep.Execution;
+import de.extio.lmdatasetprep.Execution.WorkPacket;
+import de.extio.lmdatasetprep.TextUtils;
 import de.extio.lmlib.client.ClientService;
 import de.extio.lmlib.profile.ModelCategory;
 
 @Component
-public class Rewrite implements Consumer<String[]>, DatasetTool {
+public class Rewrite implements DatasetTool {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Rewrite.class);
 	
@@ -50,40 +53,32 @@ public class Rewrite implements Consumer<String[]>, DatasetTool {
 	private ClientService clientService;
 	
 	@Override
-	public void accept(final String[] args) {
-		if (args.length < 5) {
-			LOGGER.error("Arguments are missing. <Path to text files> <Path to output dir> <Texts per input> <Model suffix>");
-			return;
-		}
-		
-		Utils.transformDirectory(args[1],
-				f -> {
+	public void accept(final Properties properties) {
+		Execution.transform(properties.getProperty("rewrite.source"),
+				packet -> {
 					final List<Runnable> tasks = new ArrayList<>();
-					tasks.add(() -> this.rewriteFile(args, f, 0, "impr", ModelCategory.COLD, IMPROVEMENT_PROMPT));
-					for (int i = 0; i < Integer.parseInt(args[3]); i++) {
+					tasks.add(() -> this.rewriteFile(properties, packet, 0, "impr", ModelCategory.COLD, IMPROVEMENT_PROMPT));
+					for (int i = 0; i < Integer.parseInt(properties.getProperty("rewrite.cnt")); i++) {
 						final int fi = i;
-						tasks.add(() -> this.rewriteFile(args, f, fi, "enh", ModelCategory.COLD, String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
+						tasks.add(() -> this.rewriteFile(properties, packet, fi, "enh", ModelCategory.COLD, String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
 					}
 					return tasks;
 				});
 	}
 	
-	private void rewriteFile(final String[] args, final Path f, final int i, final String identifier, final ModelCategory modelCategory, final String prompt) {
-		final Path out = Utils.suffixFilename(Path.of(args[2]).resolve(f.getFileName()),
+	private void rewriteFile(final Properties properties, final WorkPacket packet, final int i, final String identifier, final ModelCategory modelCategory, final String prompt) {
+		final Path out = Execution.suffixFilename(packet.file(),
 				"rewr",
-				args[4],
+				properties.getProperty("rewrite.model"),
 				identifier,
 				modelCategory.toString().toLowerCase(),
 				String.valueOf(i));
-		if (Files.exists(out)) {
-			LOGGER.info("Skipping " + out);
-			return;
-		}
 		
-		LOGGER.info("Rewriting " + f.getFileName() + " " + identifier + " " + modelCategory.name() + " " + i);
-		Utils.streamOut(out, fos -> {
+		LOGGER.info("Rewriting " + packet.file().getFileName() + " " + identifier + " " + modelCategory.name() + " " + i);
+		
+		Execution.streamOut(out, "rewrite.destination", properties, fos -> {
 			final AtomicBoolean first = new AtomicBoolean(true);
-			this.rewrite(f, prompt, modelCategory, chunk -> {
+			this.rewrite(packet, prompt, modelCategory, chunk -> {
 				try {
 					if (!first.getAndSet(false)) {
 						fos.write(PARAGRAPH);
@@ -97,17 +92,9 @@ public class Rewrite implements Consumer<String[]>, DatasetTool {
 		});
 	}
 	
-	void rewrite(final Path file, final String prompt, final ModelCategory modelCategory, final Consumer<String> consumer) {
-		String text;
-		try {
-			text = Utils.normalizeText(Files.readString(file));
-		}
-		catch (final IOException e) {
-			throw new RuntimeException("Cannot read file", e);
-		}
-		
-		final List<String> splits = Utils.splitParagraphs(text, 1250, 350, false);
-		
+	void rewrite(final WorkPacket packet, final String prompt, final ModelCategory modelCategory, final Consumer<String> consumer) {
+		final String text = TextUtils.normalizeText(packet.text());
+		final List<String> splits = TextUtils.splitParagraphs(text, 1250, 350, false);
 		for (final String split : splits) {
 			LOGGER.info("Split " + (splits.indexOf(split) + 1) + "/" + splits.size());
 			final var completion = this.clientService.getClient(modelCategory).completion(modelCategory,

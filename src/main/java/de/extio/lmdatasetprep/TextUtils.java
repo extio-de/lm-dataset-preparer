@@ -1,34 +1,20 @@
-package de.extio.lmdatasetprep.preparer;
+package de.extio.lmdatasetprep;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.extio.lmdatasetprep.LmDatasetPreparerApplication;
-
-public class Utils {
+public class TextUtils {
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(TextUtils.class);
 	
 	private static final List<String> PARAGRAPH_DELIMITERS = List.of("\n\n", "\n", ".", "!", "?");
 	
-	static String normalizeText(final String text) {
+	public static String normalizeText(final String text) {
 		String result = text;
 		
 		// Remove excessive newlines, spaces and tabs
@@ -66,7 +52,7 @@ public class Utils {
 		return result;
 	}
 	
-	static String normalizeModelResponse(final String response, final boolean removePreamble) {
+	public static String normalizeModelResponse(final String response, final boolean removePreamble) {
 		var result = StringUtils.replace(response, "\r", "");
 		
 		final int colon = result.indexOf(':');
@@ -81,7 +67,7 @@ public class Utils {
 		return result;
 	}
 	
-	static List<String> splitParagraphs(final String text, final int chunks_norm, final int chunks_var, final boolean slidingWindows) {
+	public static List<String> splitParagraphs(final String text, final int chunks_norm, final int chunks_var, final boolean slidingWindows) {
 		final int CHUNKS_MIN = chunks_norm - chunks_var;
 		final int CHUNKS_MAX = chunks_norm + chunks_var;
 		
@@ -144,104 +130,4 @@ public class Utils {
 		return splits;
 	}
 	
-	static void transformDirectory(final String path, final Function<Path, List<Runnable>> createTasks) {
-		final int EXECUTORS = Integer.parseInt(LmDatasetPreparerApplication.applicationContext.getEnvironment().getProperty("agent.threads"));
-		final AtomicBoolean finished = new AtomicBoolean(false);
-		final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>(EXECUTORS * 2);
-		
-		final List<Thread> threads = new ArrayList<>(EXECUTORS);
-		for (int i = 0; i < EXECUTORS; i++) {
-			final Thread executor = new Thread(() -> {
-				while (!Thread.interrupted() && !finished.get()) {
-					try {
-						final Runnable task = tasks.poll(1, TimeUnit.SECONDS);
-						if (task != null) {
-							task.run();
-						}
-					}
-					catch (final InterruptedException e) {
-						break;
-					}
-				}
-			});
-			executor.setName("Executor " + i);
-			executor.start();
-			threads.add(executor);
-		}
-		
-		try (Stream<Path> stream = Files.list(Paths.get(path))) {
-			stream
-					.filter(p -> Files.isRegularFile(p))
-					.forEach(p -> {
-						for (final Runnable r : createTasks.apply(p)) {
-							try {
-								tasks.put(r);
-							}
-							catch (final InterruptedException e) {
-								throw new RuntimeException("Interrupted", e);
-							}
-						}
-					});
-		}
-		catch (final IOException e) {
-			LOGGER.error("Error", e);
-		}
-		
-		while (!tasks.isEmpty()) {
-			try {
-				Thread.sleep(1);
-			}
-			catch (final InterruptedException e) {
-				LOGGER.error("Interrupted", e);
-			}
-		}
-		finished.set(true);
-		
-		for (int i = 0; i < EXECUTORS; i++) {
-			try {
-				threads.get(i).join();
-			}
-			catch (final InterruptedException e) {
-				LOGGER.error("Interrupted", e);
-			}
-		}
-	}
-	
-	static Path suffixFilename(final Path f, final String... suffixes) {
-		final StringBuilder sb = new StringBuilder();
-		for (final String suffix : suffixes) {
-			if (suffix.charAt(0) != '.') {
-				sb.append('_');
-				sb.append(suffix);
-			}
-		}
-		
-		final String[] parts = f.getFileName().toString().split("[.]");
-		String last;
-		if (suffixes[suffixes.length - 1].charAt(0) == '.') {
-			last = suffixes[suffixes.length - 1];
-		}
-		else {
-			last = "." + parts[1];
-		}
-		
-		return f.getParent().resolve(parts[0] + sb.toString() + last);
-	}
-	
-	static void streamOut(final Path f, final Consumer<OutputStream> consumer) {
-		final var tmp = f.resolveSibling(f.getFileName() + ".tmp");
-		try (var fos = Files.newOutputStream(tmp)) {
-			consumer.accept(fos);
-		}
-		catch (final IOException e1) {
-			LOGGER.error("IO exception", e1);
-			return;
-		}
-		try {
-			Files.move(tmp, f);
-		}
-		catch (final IOException e) {
-			LOGGER.error("IO exception", e);
-		}
-	}
 }
