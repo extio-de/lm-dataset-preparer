@@ -81,7 +81,7 @@ public class Rewrite implements Consumer<String[]>, DatasetTool {
 		}
 		
 		LOGGER.info("Rewriting " + f.getFileName() + " " + identifier + " " + modelCategory.name() + " " + i);
-		try (var fos = Files.newOutputStream(out)) {
+		Utils.streamOut(out, fos -> {
 			final AtomicBoolean first = new AtomicBoolean(true);
 			this.rewrite(f, prompt, modelCategory, chunk -> {
 				try {
@@ -94,10 +94,7 @@ public class Rewrite implements Consumer<String[]>, DatasetTool {
 					LOGGER.error("IO exception", e);
 				}
 			});
-		}
-		catch (final IOException e1) {
-			LOGGER.error("IO exception", e1);
-		}
+		});
 	}
 	
 	void rewrite(final Path file, final String prompt, final ModelCategory modelCategory, final Consumer<String> consumer) {

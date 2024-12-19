@@ -49,13 +49,13 @@ abstract class AbstractContextualPrompts implements InitializingBean, Consumer<S
 	
 	@Override
 	public void accept(final String[] args) {
-		if (args.length < 6) {
-			LOGGER.error("Arguments are missing. <Path to text files> <Path to output dir> <variations> [<chunk norm> <chunk var>, ...]");
+		if (args.length < 7) {
+			LOGGER.error("Arguments are missing. <Path to text files> <Path to output dir> <model prefix> <variations> [<chunk norm> <chunk var>, ...]");
 			return;
 		}
-		final int variations = Integer.parseInt(args[3]);
+		final int variations = Integer.parseInt(args[4]);
 		final List<ChunkCfg> chunkConfigurations = new ArrayList<>();
-		for (int i = 4; i < args.length; i += 2) {
+		for (int i = 5; i < args.length; i += 2) {
 			final var cfg = new ChunkCfg(Integer.parseInt(args[i]), Integer.parseInt(args[i + 1]));
 			chunkConfigurations.add(cfg);
 		}
@@ -135,24 +135,13 @@ abstract class AbstractContextualPrompts implements InitializingBean, Consumer<S
 		return result;
 	}
 	
-	protected String paragraphToContextualPrompt(final String paragraph, final String instruction) {
+	protected String createPrompt(final String paragraph, final String instruction) {
 		final var completion = this.clientService.getClient(ModelCategory.COLD).completion(ModelCategory.COLD,
 				"You are an assistant with great text writing skills.",
 				instruction,
 				paragraph);
 		
-		String prompt = completion.response();
-		final int colon = prompt.indexOf(':');
-		if (colon > -1 && colon < prompt.length() + 1) {
-			prompt = prompt.substring(colon + 1);
-		}
-		final int preamble = prompt.indexOf("\n\n");
-		if (preamble > -1 && preamble < prompt.length() + 2) {
-			prompt = prompt.substring(preamble + 2);
-		}
-		prompt = prompt.trim();
-		
-		return prompt;
+		return Utils.normalizeModelResponse(completion.response(), true);
 	}
 	
 	protected void writeJsonLine(final ObjectMapper mapper, final OutputStream fos, final Object line) {

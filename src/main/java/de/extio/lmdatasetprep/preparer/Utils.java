@@ -1,6 +1,7 @@
 package de.extio.lmdatasetprep.preparer;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -11,9 +12,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +62,21 @@ public class Utils {
 		result = sb.toString();
 		
 		LOGGER.info("Normalizer stats: Before: {} After {}", text.length(), result.length());
+		
+		return result;
+	}
+	
+	static String normalizeModelResponse(final String response, final boolean removePreamble) {
+		var result = StringUtils.replace(response, "\r", "");
+		
+		final int colon = result.indexOf(':');
+		if (colon > -1 && colon < result.length() - 2 && (colon < 50 || result.charAt(colon + 1) == '\n')) {
+			result = result.substring(colon + 1);
+		}
+		
+		result = StringUtils.trim(result);
+		result = StringUtils.strip(result, "´`'“”„‟«»\"\r\n");
+		result = StringUtils.trim(result);
 		
 		return result;
 	}
@@ -208,5 +226,22 @@ public class Utils {
 		}
 		
 		return f.getParent().resolve(parts[0] + sb.toString() + last);
+	}
+	
+	static void streamOut(final Path f, final Consumer<OutputStream> consumer) {
+		final var tmp = f.resolveSibling(f.getFileName() + ".tmp");
+		try (var fos = Files.newOutputStream(tmp)) {
+			consumer.accept(fos);
+		}
+		catch (final IOException e1) {
+			LOGGER.error("IO exception", e1);
+			return;
+		}
+		try {
+			Files.move(tmp, f);
+		}
+		catch (final IOException e) {
+			LOGGER.error("IO exception", e);
+		}
 	}
 }

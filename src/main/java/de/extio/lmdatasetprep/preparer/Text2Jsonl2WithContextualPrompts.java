@@ -29,6 +29,7 @@ public class Text2Jsonl2WithContextualPrompts extends AbstractContextualPrompts 
 				for (int i = 0; i < variations; i++) {
 					final Path out = Utils.suffixFilename(Path.of(args[2]).resolve(p.getFileName()),
 							"contextualds",
+							args[3],
 							String.valueOf(chunkCfg.chunksNorm()),
 							String.valueOf(i),
 							".jsonl");
@@ -38,7 +39,7 @@ public class Text2Jsonl2WithContextualPrompts extends AbstractContextualPrompts 
 					}
 					
 					tasks.add(() -> {
-						try (var fos = Files.newOutputStream(out)) {
+						Utils.streamOut(out, fos -> {
 							for (int j = 0; j < paragraphs.size(); j++) {
 								LOGGER.info("Paragraph " + (j + 1) + "/" + paragraphs.size());
 								
@@ -46,22 +47,19 @@ public class Text2Jsonl2WithContextualPrompts extends AbstractContextualPrompts 
 								if (j > 2) {
 									final var history = String.join("\n", paragraphs.subList(j - 3, j));
 									final var mapping = this.createCharacterNameMapping(history);
-									final var previous = this.paragraphToContextualPrompt(this.renameCharacters(history, mapping), "Write a summary of the following story as a user prompt that asks to write the story. Mention the place where they are and ask the question what could happen next. Include all essential details, enabling the user to better understand the subject matter. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+									final var previous = this.createPrompt(this.renameCharacters(history, mapping), "Write a summary of the following story as a user prompt that asks to write the story. Mention the place where they are and ask the question what could happen next. Include all essential details, enabling the user to better understand the subject matter. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
 									qaLine = new QaLine(previous, this.renameCharacters(paragraphs.get(j), mapping));
 								}
 								else {
 									final var mapping = this.createCharacterNameMapping(paragraphs.get(j));
 									final var paragraph = this.renameCharacters(paragraphs.get(j), mapping);
-									final var userPrompt = this.paragraphToContextualPrompt(paragraph, "Write a summary of the following story as a user prompt that asks to write the story. Include all essential details, enabling the user to better understand the subject matter. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+									final var userPrompt = this.createPrompt(paragraph, "Write a summary of the following story as a user prompt that asks to write the story. Include all essential details, enabling the user to better understand the subject matter. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
 									qaLine = new QaLine(userPrompt, paragraph);
 								}
 								
 								this.writeJsonLine(mapper, fos, qaLine);
 							}
-						}
-						catch (final IOException e1) {
-							LOGGER.error("IO exception", e1);
-						}
+						});
 					});
 				}
 			}

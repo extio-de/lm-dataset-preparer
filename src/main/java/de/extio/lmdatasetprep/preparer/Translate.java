@@ -40,7 +40,7 @@ public class Translate implements Consumer<String[]>, DatasetTool {
 					LOGGER.info("Skipping " + out);
 				}
 				else {
-					try (var fos = Files.newOutputStream(out)) {
+					Utils.streamOut(out, fos -> {
 						final AtomicBoolean first = new AtomicBoolean(true);
 						this.translate(p, chunk -> {
 							try {
@@ -53,10 +53,7 @@ public class Translate implements Consumer<String[]>, DatasetTool {
 								LOGGER.error("IO exception", e);
 							}
 						});
-					}
-					catch (final IOException e1) {
-						LOGGER.error("IO exception", e1);
-					}
+					});
 				}
 			});
 		});
