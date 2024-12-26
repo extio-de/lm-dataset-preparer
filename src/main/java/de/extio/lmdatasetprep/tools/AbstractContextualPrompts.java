@@ -48,8 +48,12 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 	
 	@Override
 	public void afterPropertiesSet() throws Exception {
-		this.maleNames = new BufferedReader(new InputStreamReader(new ClassPathResource("male.txt").getInputStream())).lines().collect(Collectors.toList());
-		this.femaleNames = new BufferedReader(new InputStreamReader(new ClassPathResource("female.txt").getInputStream())).lines().collect(Collectors.toList());
+		try (var in = new ClassPathResource("male.txt").getInputStream()) {
+			this.maleNames = new BufferedReader(new InputStreamReader(in)).lines().collect(Collectors.toList());
+		}
+		try (var in = new ClassPathResource("female.txt").getInputStream()) {
+			this.femaleNames = new BufferedReader(new InputStreamReader(in)).lines().collect(Collectors.toList());
+		}
 	}
 	
 	@Override
@@ -159,5 +163,11 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 	}
 	
 	protected record Names(List<String> males, List<String> females) {
+	}
+	
+	protected record QaLine(String question, String answer) {
+	}
+	
+	protected record HistInstrComplLine(String history, String instruct, String completion) {
 	}
 }

@@ -10,7 +10,7 @@ import de.extio.lmlib.profile.ModelCategory;
 public interface DatasetTool extends Consumer<Properties> {
 	
 	default String getModelCategoryPropertyName() {
-		return null;
+		throw new IllegalStateException("Tool does not set a modelCategoryPropertyName");
 	}
 	
 	default ModelCategory getModelCategory(final Properties properties) {

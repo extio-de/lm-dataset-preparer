@@ -14,9 +14,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.extio.lmdatasetprep.Execution;
 
 @Component
-public class Text2Jsonl2WithContextualPrompts extends AbstractContextualPrompts {
+public class GenContextualPrompts extends AbstractContextualPrompts {
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(Text2Jsonl2WithContextualPrompts.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(GenContextualPrompts.class);
 	
 	@Override
 	protected CreateTasks createTasks(final Properties properties, final List<ChunkCfg> chunkConfigurations, final int variations) {
@@ -25,17 +25,19 @@ public class Text2Jsonl2WithContextualPrompts extends AbstractContextualPrompts 
 			final List<Runnable> tasks = new ArrayList<>();
 			
 			for (final ChunkCfg chunkCfg : chunkConfigurations) {
-				final List<String> paragraphs = this.fileToParagraphs(p, chunkCfg.chunksNorm(), chunkCfg.chunksVar());
-				
 				for (int i = 0; i < variations; i++) {
-					final Path out = Execution.suffixFilename(p.file().getFileName(),
-							"contextualds",
-							properties.getProperty("contextualPrompts.model"),
-							String.valueOf(chunkCfg.chunksNorm()),
-							String.valueOf(i),
-							".jsonl");
+					final int fi = i;
 					
 					tasks.add(() -> {
+						final List<String> paragraphs = this.fileToParagraphs(p, chunkCfg.chunksNorm(), chunkCfg.chunksVar());
+						
+						final Path out = Execution.suffixFilename(p.file().getFileName(),
+								"contextualds",
+								properties.getProperty("contextualPrompts.model"),
+								String.valueOf(chunkCfg.chunksNorm()),
+								String.valueOf(fi),
+								".jsonl");
+						
 						Execution.streamOut(out, "contextualPrompts.destination", properties, fos -> {
 							for (int j = 0; j < paragraphs.size(); j++) {
 								LOGGER.info("Paragraph " + (j + 1) + "/" + paragraphs.size());
@@ -65,6 +67,4 @@ public class Text2Jsonl2WithContextualPrompts extends AbstractContextualPrompts 
 		};
 	}
 	
-	protected record QaLine(String question, String answer) {
-	}
 }

@@ -10,13 +10,12 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,25 +37,20 @@ public class Execution {
 	
 	public static final ConcurrentMap<String, ConcurrentMap<String, BlockingQueue<WorkPacket>>> work = new ConcurrentHashMap<>();
 	
-	public static final BlockingQueue<CompletableFuture<Void>> tasks;
-	
-	public static final ScheduledExecutorService scheduler;
-	
 	public static final ExecutorService executorService;
+	
+	public static final AtomicInteger tasksRunning = new AtomicInteger();
+	
+	private static final Semaphore taskSemaphore;
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Execution.class);
 	
 	static {
 		final int EXECUTORS = Integer.parseInt(LmDatasetPreparerApplication.applicationContext.getEnvironment().getProperty("agent.threads"));
 		
-		tasks = new LinkedBlockingQueue<>(EXECUTORS * 2);
-		
 		executorService = Executors.newFixedThreadPool(EXECUTORS);
 		
-		scheduler = Executors.newScheduledThreadPool(1);
-		scheduler.scheduleAtFixedRate(() -> {
-			tasks.removeIf(future -> future.isDone());
-		}, 0, 1, TimeUnit.SECONDS);
+		taskSemaphore = new Semaphore(EXECUTORS * 2);
 	}
 	
 	public static void transform(final String source, final Function<WorkPacket, List<Runnable>> createTasks) {
@@ -83,12 +77,7 @@ public class Execution {
 					})
 					.forEach(p -> {
 						for (final Runnable r : createTasks.apply(p)) {
-							try {
-								tasks.put(CompletableFuture.runAsync(r, executorService));
-							}
-							catch (final InterruptedException e) {
-								throw new RuntimeException("Interrupted", e);
-							}
+							executeTask(r);
 						}
 					});
 		}
@@ -120,13 +109,27 @@ public class Execution {
 		WorkPacket next;
 		while ((next = getNext.get()) != null) {
 			for (final Runnable r : createTasks.apply(next)) {
-				try {
-					tasks.put(CompletableFuture.runAsync(r, executorService));
-				}
-				catch (final InterruptedException e) {
-					throw new RuntimeException("Interrupted", e);
-				}
+				executeTask(r);
 			}
+		}
+	}
+	
+	private static void executeTask(final Runnable r) {
+		try {
+			taskSemaphore.acquire();
+			tasksRunning.incrementAndGet();
+			executorService.execute(() -> {
+				try {
+					r.run();
+				}
+				finally {
+					tasksRunning.decrementAndGet();
+					taskSemaphore.release();
+				}
+			});
+		}
+		catch (final InterruptedException e) {
+			throw new RuntimeException("Interrupted", e);
 		}
 	}
 	

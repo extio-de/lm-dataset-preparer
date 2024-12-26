@@ -1,25 +1,33 @@
 # lm-dataset-preparer
 
-This program is a comprehensive text processing and data generation pipeline designed for training and evaluating language models. 
-
-**Here's a breakdown of its functionality:**
-
-1. **Data Ingestion and Preparation:** The program reads text files, splits them into paragraphs, and performs various preprocessing steps like normalization and cleaning. It can also extract names from the text and replace them with randomly selected alternatives.
-
-2. **Prompt Generation:**  The program generates different types of prompts based on the input text:
-    * **Contextual Prompts:** It creates question-answer pairs that encourage summarization or continuation of the text, incorporating context from previous paragraphs.
-    * **Instruction-Completion Pairs:** It uses predefined templates to generate instructions based on text chunks, suitable for training instruction-following models.
-
-3. **Text Rewriting and Translation:** The program can rewrite text using a language model, applying different rewriting strategies. It also offers text translation capabilities, converting text from a source language to English.
-
-4. **Data Formatting and Output:** The program formats the processed data into JSON Lines (JSONL) format, a common standard for machine learning datasets. It can merge multiple JSONL files, shuffle data, and write output to specified files.
-
-5. **Language Model Interaction:** The program provides a standardized way to interact with different language models, allowing users to configure and access them based on predefined categories.
-
-6. **Execution and Task Management:** The program utilizes a thread pool for efficient parallel processing of tasks, managing queues and scheduling for optimal performance.
+This program is a comprehensive system for generating and processing text datasets for training language models. 
 
 **Purpose:**
 
-The primary purpose of this program is to generate high-quality, diverse datasets for training and evaluating language models. By providing various text processing, prompt generation, and data formatting capabilities, the program enables researchers and developers to create customized datasets tailored to their specific needs.
+The program aims to create diverse and high-quality text datasets by leveraging various text processing techniques and language models. It enables users to:
 
-*gemma-2-27b-it-Q4_K_M.gguf; requests=12, requestDuration=PT1M28.244075765S, inTokens=12090, outTokens=880, tps=10.0*
+* **Prepare and Transform Data:** The program can load, clean, translate, rewrite, and convert text data into different formats (JSON, JSONL).
+* **Generate Contextual Prompts:** It can generate question-answer pairs and prompts based on input text, encouraging models to summarize, continue, or analyze the given content.
+* **Create Synthetic Stories:** A dedicated tool uses agents to analyze input text, extract plot points, generate new storylines, and write complete stories.
+
+**Workflow:**
+
+The program utilizes a modular design with different classes responsible for specific tasks:
+
+1. **Data Loading and Execution:** The `Execution` class manages file processing, threading, and task execution, allowing for concurrent processing of multiple tools.
+2. **Text Processing:** Classes like `TextProcessor` handle text normalization, splitting, and preamble removal.
+3. **Translation and Rewriting:** Tools translate text to English and rewrite it using language models for improvement or enhancement.
+4. **Prompt Generation:** Classes generate contextual prompts and question-answer pairs based on input text, leveraging character mapping and predefined templates.
+5. **Story Generation:** The `Create` class uses agents to analyze input text, extract plot points, generate storylines, and write complete stories.
+6. **Data Merging and Output:** Tools merge multiple JSONL files and output processed data in various formats.
+
+**Key Features:**
+
+* **Modularity:** The program is built with reusable components, allowing for easy customization and extension.
+* **Concurrency:** It utilizes multi-threading to process data efficiently.
+* **Language Model Integration:** It leverages language models for translation, rewriting, and prompt generation.
+* **Customizability:** Users can configure various parameters, such as the number of stories to generate, prompt templates, and data formats.
+
+Overall, this program provides a powerful and flexible toolkit for researchers and developers working with text data and language models.
+
+*gemma-2-27b-it-Q4_K_M.gguf, requests=13, requestDuration=PT2M5.366501869S, inTokens=16996, outTokens=1229, tps=9.832*

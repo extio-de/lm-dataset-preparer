@@ -61,8 +61,11 @@ public class Rewrite implements DatasetTool {
 		Execution.transform(properties.getProperty("rewrite.source"),
 				packet -> {
 					final List<Runnable> tasks = new ArrayList<>();
-					tasks.add(() -> this.rewriteFile(properties, packet, 0, "impr", IMPROVEMENT_PROMPT));
-					for (int i = 0; i < Integer.parseInt(properties.getProperty("rewrite.cnt")); i++) {
+					for (int i = 0; i < Integer.parseInt(properties.getProperty("rewrite.improve")); i++) {
+						final int fi = i;
+						tasks.add(() -> this.rewriteFile(properties, packet, fi, "impr", IMPROVEMENT_PROMPT));
+					}
+					for (int i = 0; i < Integer.parseInt(properties.getProperty("rewrite.enhance")); i++) {
 						final int fi = i;
 						tasks.add(() -> this.rewriteFile(properties, packet, fi, "enh", String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
 					}
@@ -71,7 +74,7 @@ public class Rewrite implements DatasetTool {
 	}
 	
 	private void rewriteFile(final Properties properties, final WorkPacket packet, final int i, final String identifier, final String prompt) {
-		final Path out = Execution.suffixFilename(packet.file(),
+		final Path out = Execution.suffixFilename(packet.file().getFileName(),
 				"rewr",
 				properties.getProperty("rewrite.model"),
 				identifier,

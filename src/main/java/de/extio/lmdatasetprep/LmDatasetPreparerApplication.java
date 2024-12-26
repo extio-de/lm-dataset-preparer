@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 
 import de.extio.lmdatasetprep.tools.DatasetTool;
@@ -77,9 +78,9 @@ public class LmDatasetPreparerApplication implements CommandLineRunner, Applicat
 			LOGGER.info("All file consumers are finished");
 			
 			int cnt = 0;
-			while (cnt < 3) {
+			while (cnt < 5) {
 				Thread.sleep(1000);
-				if (!Execution.tasks.isEmpty() || Execution.work.values().stream().anyMatch(q -> q.values().stream().anyMatch(bq -> !bq.isEmpty()))) {
+				if (Execution.tasksRunning.get() != 0 || Execution.work.values().stream().anyMatch(q -> q.values().stream().anyMatch(bq -> !bq.isEmpty()))) {
 					cnt = 0;
 				}
 				else {
@@ -94,8 +95,8 @@ public class LmDatasetPreparerApplication implements CommandLineRunner, Applicat
 			}
 			
 			LOGGER.info("Shutdown");
-			Execution.scheduler.shutdown();
 			Execution.executorService.shutdown();
+			((ConfigurableApplicationContext) applicationContext).close();
 		}
 		catch (final Exception e) {
 			LOGGER.error("Error executing the component", e);

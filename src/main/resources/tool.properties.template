@@ -1,14 +1,17 @@
+translate.category=SMALL
 # Source and destination can be either a path...
 translate.source=/home/xxx/folder
 # ... or a queue. Queues are prefixed with "queue", after the prefix comes the queue name
 translate.destination=queue0
 
+rewrite.category=SMALL
 rewrite.source=queue0
 rewrite.destination=queue1
-rewrite.cnt=2
+rewrite.improve=1
+rewrite.enhance=2
 rewrite.model=l3dp
 
-# .n indicates a sequence. Add as many keys as you need
+# .n indicates that the key supports sequences. Add as many keys as you need
 mergeJsonl.source.0=
 mergeJsonl.destination=
 
@@ -17,6 +20,7 @@ text2Jsonl.destination=
 text2Jsonl.chunkNorm=750
 text2Jsonl.chunkVar=250
 
+contextualPrompts.category=SMALL
 contextualPrompts.source=queue1
 contextualPrompts.destination=/home/xxx/outputdir
 contextualPrompts.model=l3dp
@@ -25,3 +29,14 @@ contextualPrompts.chunkNorm.0=750
 contextualPrompts.chunkVar.0=250
 contextualPrompts.chunkNorm.1=1500
 contextualPrompts.chunkVar.1=300
+
+create.source=
+create.destination=
+create.category=SMALL
+create.model=l3dp
+create.plotLimit=6000
+create.conciseParagraphs=false
+create.themes=2
+create.stories=2
+create.debug.keepOriginal=false
+create.debug.returnPlot=false

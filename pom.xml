@@ -8,12 +8,24 @@
 	
 	<properties>
 		<java.version>21</java.version>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>		
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>		
 		<springdoc.version>2.5.0</springdoc.version>
-		<spring-boot.version>3.4.0</spring-boot.version>
-		<lmlib.version>1.0.0-SNAPSHOT</lmlib.version>
+		<spring-boot.version>3.4.1</spring-boot.version>
+		<lmlib.version>1.0.0</lmlib.version>
 	</properties>
+	
+	<repositories>
+			<repository>
+					<id>spacecraft-tactics-releases</id>
+					<name>Spacecraft Tactics Repository</name>
+					<url>https://spacecraft-tactics.com/repository/releases</url>
+			</repository>
+			<repository>
+					<id>central</id>
+					<url>https://repo1.maven.org/maven2/</url>
+			</repository>
+	</repositories>	
 	
 	<dependencyManagement>
 		<dependencies>
@@ -36,17 +48,17 @@
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>
 		</dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-        </dependency>
-        
-        <dependency>
-            <groupId>de.extio</groupId>
-            <artifactId>lm-lib</artifactId>
-            <version>${lmlib.version}</version>
-        </dependency>
-
+		<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-lang3</artifactId>
+		</dependency>
+		
+		<dependency>
+				<groupId>de.extio</groupId>
+				<artifactId>lm-lib</artifactId>
+				<version>${lmlib.version}</version>
+		</dependency>
+		
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
