@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -24,6 +25,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import org.apache.commons.io.output.TeeOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,50 +161,85 @@ public class Execution {
 	}
 	
 	public static void streamOut(final Path f, final String propertyPrefix, final Properties properties, final Consumer<OutputStream> consumer) {
-		final var destination = properties.getProperty(propertyPrefix);
-		if (destination.startsWith("queue")) {
-			streamOutToQueue(f, destination, consumer);
+		final var streamFuncs = new ArrayList<OutStream>();
+		for (int i = 0; i < 2; i++) {
+			final var destination = properties.getProperty(propertyPrefix + "." + i);
+			if (destination != null) {
+				if (destination.startsWith("queue")) {
+					streamFuncs.add(setupStreamOutToQueue(f, destination));
+				}
+				else {
+					streamFuncs.add(setupStreamOutToFile(f, destination));
+				}
+			}
 		}
-		else {
-			streamOutToFile(f, destination, consumer);
-		}
-		
-	}
-	
-	private static void streamOutToFile(final Path f, final String destination, final Consumer<OutputStream> consumer) {
-		final var out = Path.of(destination).resolve(f);
-		if (Files.exists(out)) {
-			LOGGER.info("File already exists: {} ", out);
+		if (streamFuncs.isEmpty()) {
 			return;
 		}
 		
-		final var tmp = out.resolveSibling(out.getFileName() + ".tmp");
-		try (var fos = Files.newOutputStream(tmp)) {
-			consumer.accept(fos);
-		}
-		catch (final IOException e1) {
-			LOGGER.error("IO exception", e1);
-			return;
-		}
+		final var streams = streamFuncs.stream().map(streamFunc -> streamFunc.open().get()).toList();
+		final var outStream = streams.size() == 1 ? streams.getFirst() : new TeeOutputStream(streams.get(0), streams.get(1));
 		try {
-			Files.move(tmp, out);
+			consumer.accept(outStream);
 		}
-		catch (final IOException e) {
-			LOGGER.error("IO exception", e);
+		finally {
+			try {
+				outStream.close();
+			}
+			catch (final IOException e) {
+				LOGGER.error("IO exception", e);
+			}
 		}
+		
+		for (int i = 0; i < streamFuncs.size(); i++) {
+			streamFuncs.get(i).afterClose().accept(streams.get(i));
+		}
+		
 	}
 	
-	private static void streamOutToQueue(final Path f, final String destination, final Consumer<OutputStream> consumer) {
-		try (var bos = new ByteArrayOutputStream()) {
-			consumer.accept(bos);
-			final var text = bos.toString(StandardCharsets.UTF_8);
-			work.computeIfAbsent(destination, k -> new ConcurrentHashMap<>()).values().forEach(queue -> queue.add(new WorkPacket(f, text)));
-		}
-		catch (final IOException e) {
-			LOGGER.error("IO exception", e);
-		}
+	private static OutStream setupStreamOutToFile(final Path f, final String destination) {
+		return new OutStream(() -> {
+			final var out = Path.of(destination).resolve(f);
+			if (Files.exists(out)) {
+				LOGGER.info("File already exists: {} ", out);
+				return null;
+			}
+			
+			final var tmp = out.resolveSibling(out.getFileName() + ".tmp");
+			try {
+				return Files.newOutputStream(tmp);
+			}
+			catch (final IOException e) {
+				LOGGER.error("IO exception", e);
+				return null;
+			}
+		},
+				(stream) -> {
+					try {
+						final var out = Path.of(destination).resolve(f);
+						final var tmp = out.resolveSibling(out.getFileName() + ".tmp");
+						Files.move(tmp, out);
+					}
+					catch (final IOException e) {
+						LOGGER.error("IO exception", e);
+					}
+				});
+	}
+	
+	private static OutStream setupStreamOutToQueue(final Path f, final String destination) {
+		return new OutStream(() -> {
+			return new ByteArrayOutputStream();
+		},
+				(stream) -> {
+					final var text = ((ByteArrayOutputStream) stream).toString(StandardCharsets.UTF_8);
+					work.computeIfAbsent(destination, k -> new ConcurrentHashMap<>()).values().forEach(queue -> queue.add(new WorkPacket(f, text)));
+				});
 	}
 	
 	public record WorkPacket(Path file, String text) {
+	}
+	
+	private record OutStream(Supplier<OutputStream> open, Consumer<OutputStream> afterClose) {
+		
 	}
 }

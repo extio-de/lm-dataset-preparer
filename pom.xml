@@ -49,10 +49,15 @@
 			<artifactId>caffeine</artifactId>
 		</dependency>
 		<dependency>
-				<groupId>org.apache.commons</groupId>
-				<artifactId>commons-lang3</artifactId>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
 		</dependency>
-		
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.17.0</version>
+        </dependency>
+        
 		<dependency>
 				<groupId>de.extio</groupId>
 				<artifactId>lm-lib</artifactId>
