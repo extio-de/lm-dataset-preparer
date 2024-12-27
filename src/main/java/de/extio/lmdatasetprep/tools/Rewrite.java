@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +30,13 @@ public class Rewrite implements DatasetTool {
 	
 	private static final String SYSTEM_PROMPT = "You are a helpful assistant with great authoring skills.";
 	
-	private static final String IMPROVEMENT_PROMPT = "Improve the following text without changing the existing sentences, improve the text in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
+	private static final String IMPROVEMENT_PROMPT = "Improve %s without changing the existing sentences, improve the text in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
 	
-	private static final String ENHANCE_PROMPT = "Improve the following text. %s without changing the existing sentences, focusing on enriching the description of the setting in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
+	private static final String ENHANCE_PROMPT = "Improve %s. %s without changing the existing sentences, focusing on enriching the description of the setting in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
+	
+	private static final String FIRST_PROMPT = "the following text";
+	
+	private static final String NEXT_PROMPT = "the next paragraph";
 	
 	private static final List<String> ENHANCEMENTS = List.of(
 			"Infuse this paragraph with subtle sensory details, focusing on the texture of objects and the atmosphere of the setting",
@@ -66,24 +70,24 @@ public class Rewrite implements DatasetTool {
 					final List<Runnable> tasks = new ArrayList<>();
 					for (int i = 0; i < Integer.parseInt(properties.getProperty("rewrite.improve")); i++) {
 						final int fi = i;
-						tasks.add(() -> this.rewriteFile(properties, packet, fi, "impr", () -> IMPROVEMENT_PROMPT));
+						tasks.add(() -> this.rewriteFile(properties, packet, fi, "impr", first -> String.format(IMPROVEMENT_PROMPT, first ? FIRST_PROMPT : NEXT_PROMPT)));
 					}
 					for (int i = 0; i < Integer.parseInt(properties.getProperty("rewrite.enhance")); i++) {
 						final int fi = i;
-						tasks.add(() -> this.rewriteFile(properties, packet, fi, "enh", () -> String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
+						tasks.add(() -> this.rewriteFile(properties, packet, fi, "enh", first -> String.format(ENHANCE_PROMPT, first ? FIRST_PROMPT : NEXT_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
 					}
 					return tasks;
 				});
 	}
 	
-	private void rewriteFile(final Properties properties, final WorkPacket packet, final int variation, final String identifier, final Supplier<String> promptSupplier) {
+	private void rewriteFile(final Properties properties, final WorkPacket packet, final int variation, final String identifier, final Function<Boolean, String> promptSupplier) {
 		final var out = Execution.suffixFilename(packet.file().getFileName(),
 				"rewr",
 				properties.getProperty("rewrite.model"),
 				identifier,
 				String.valueOf(variation));
 		
-		LOGGER.info("Rewriting " + packet.file().getFileName() + " " + identifier + " " + " " + variation);
+		LOGGER.info("Rewriting " + packet.file().getFileName() + " " + identifier + " " + variation);
 		
 		Execution.streamOut(out, "rewrite.destination", properties, fos -> {
 			final var client = this.getClient(properties, this.clientService);
@@ -101,13 +105,13 @@ public class Rewrite implements DatasetTool {
 					Conversation conversation;
 					if (first) {
 						first = false;
-						turn = promptSupplier.get() + "\n" + splits.get(i);
+						turn = promptSupplier.apply(Boolean.TRUE) + "\n" + splits.get(i);
 						conversation = Conversation.create(SYSTEM_PROMPT, turn);
 					}
 					else {
 						conversation = Conversation.create(SYSTEM_PROMPT, turn);
 						conversation.addTurn(new Turn(TurnType.ASSISTANT, response));
-						turn = promptSupplier.get() + "\n" + splits.get(i);
+						turn = promptSupplier.apply(Boolean.FALSE) + "\n" + splits.get(i);
 						conversation.addTurn(new Turn(TurnType.USER, turn));
 						
 						fos.write(PARAGRAPH);
