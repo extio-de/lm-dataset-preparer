@@ -2,13 +2,11 @@ package de.extio.lmdatasetprep.tools;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +17,9 @@ import de.extio.lmdatasetprep.Execution;
 import de.extio.lmdatasetprep.Execution.WorkPacket;
 import de.extio.lmdatasetprep.TextUtils;
 import de.extio.lmlib.client.ClientService;
+import de.extio.lmlib.client.Conversation;
+import de.extio.lmlib.client.Conversation.Turn;
+import de.extio.lmlib.client.Conversation.TurnType;
 
 @Component
 public class Rewrite implements DatasetTool {
@@ -27,11 +28,13 @@ public class Rewrite implements DatasetTool {
 	
 	private static final byte[] PARAGRAPH = "\n\n".getBytes(StandardCharsets.UTF_8);
 	
-	private static String IMPROVEMENT_PROMPT = "Improve the following text without changing the existing sentences, improve the text in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
+	private static final String SYSTEM_PROMPT = "You are a helpful assistant with great authoring skills.";
 	
-	private static String ENHANCE_PROMPT = "Improve the following text. %s without changing the existing sentences, focusing on enriching the description of the setting in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
+	private static final String IMPROVEMENT_PROMPT = "Improve the following text without changing the existing sentences, improve the text in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
 	
-	private static List<String> ENHANCEMENTS = List.of(
+	private static final String ENHANCE_PROMPT = "Improve the following text. %s without changing the existing sentences, focusing on enriching the description of the setting in a nuanced and understated way. Return the improved text, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't include a preamble and no explanation:";
+	
+	private static final List<String> ENHANCEMENTS = List.of(
 			"Infuse this paragraph with subtle sensory details, focusing on the texture of objects and the atmosphere of the setting",
 			"Add subtle hints of the character's inner thoughts and emotions within the existing dialogue and actions",
 			"Enhance the paragraph with figurative language like metaphors or similes to create a richer tapestry of imagery",
@@ -63,52 +66,62 @@ public class Rewrite implements DatasetTool {
 					final List<Runnable> tasks = new ArrayList<>();
 					for (int i = 0; i < Integer.parseInt(properties.getProperty("rewrite.improve")); i++) {
 						final int fi = i;
-						tasks.add(() -> this.rewriteFile(properties, packet, fi, "impr", IMPROVEMENT_PROMPT));
+						tasks.add(() -> this.rewriteFile(properties, packet, fi, "impr", () -> IMPROVEMENT_PROMPT));
 					}
 					for (int i = 0; i < Integer.parseInt(properties.getProperty("rewrite.enhance")); i++) {
 						final int fi = i;
-						tasks.add(() -> this.rewriteFile(properties, packet, fi, "enh", String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
+						tasks.add(() -> this.rewriteFile(properties, packet, fi, "enh", () -> String.format(ENHANCE_PROMPT, ENHANCEMENTS.get(ThreadLocalRandom.current().nextInt(ENHANCEMENTS.size())))));
 					}
 					return tasks;
 				});
 	}
 	
-	private void rewriteFile(final Properties properties, final WorkPacket packet, final int i, final String identifier, final String prompt) {
-		final Path out = Execution.suffixFilename(packet.file().getFileName(),
+	private void rewriteFile(final Properties properties, final WorkPacket packet, final int variation, final String identifier, final Supplier<String> promptSupplier) {
+		final var out = Execution.suffixFilename(packet.file().getFileName(),
 				"rewr",
 				properties.getProperty("rewrite.model"),
 				identifier,
-				String.valueOf(i));
+				String.valueOf(variation));
 		
-		LOGGER.info("Rewriting " + packet.file().getFileName() + " " + identifier + " " + " " + i);
+		LOGGER.info("Rewriting " + packet.file().getFileName() + " " + identifier + " " + " " + variation);
 		
 		Execution.streamOut(out, "rewrite.destination", properties, fos -> {
-			final AtomicBoolean first = new AtomicBoolean(true);
-			this.rewrite(packet, prompt, properties, chunk -> {
+			final var client = this.getClient(properties, this.clientService);
+			
+			final var text = TextUtils.normalizeText(packet.text());
+			final var splits = TextUtils.splitParagraphs(text, 1250, 350, false);
+			
+			var first = true;
+			String turn = null;
+			String response = null;
+			for (int i = 0; i < splits.size(); i++) {
+				LOGGER.info("Split " + (i + 1) + "/" + splits.size());
+				
 				try {
-					if (!first.getAndSet(false)) {
+					Conversation conversation;
+					if (first) {
+						first = false;
+						turn = promptSupplier.get() + "\n" + splits.get(i);
+						conversation = Conversation.create(SYSTEM_PROMPT, turn);
+					}
+					else {
+						conversation = Conversation.create(SYSTEM_PROMPT, turn);
+						conversation.addTurn(new Turn(TurnType.ASSISTANT, response));
+						turn = promptSupplier.get() + "\n" + splits.get(i);
+						conversation.addTurn(new Turn(TurnType.USER, turn));
+						
 						fos.write(PARAGRAPH);
 					}
-					fos.write(chunk.getBytes(StandardCharsets.UTF_8));
+					LOGGER.debug(conversation.toString());
+					
+					final var completion = client.conversation(this.getModelCategory(properties), conversation);
+					response = completion.response();
+					fos.write(response.getBytes(StandardCharsets.UTF_8));
 				}
 				catch (final IOException e) {
 					LOGGER.error("IO exception", e);
 				}
-			});
+			}
 		});
-	}
-	
-	void rewrite(final WorkPacket packet, final String prompt, final Properties properties, final Consumer<String> consumer) {
-		final String text = TextUtils.normalizeText(packet.text());
-		final List<String> splits = TextUtils.splitParagraphs(text, 1250, 350, false);
-		final var client = this.getClient(properties, this.clientService);
-		for (final String split : splits) {
-			LOGGER.info("Split " + (splits.indexOf(split) + 1) + "/" + splits.size());
-			final var completion = client.completion(this.getModelCategory(properties),
-					"You are a helpful assistant with great authoring skills.",
-					prompt,
-					split);
-			consumer.accept(completion.response());
-		}
 	}
 }
