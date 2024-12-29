@@ -161,7 +161,7 @@ public class Execution {
 	}
 	
 	public static void streamOut(final Path f, final String propertyPrefix, final Properties properties, final Consumer<OutputStream> consumer) {
-		final var streamFuncs = new ArrayList<OutStream>();
+		final var streamFuncs = new ArrayList<StreamFunc>();
 		for (int i = 0; i < 2; i++) {
 			final var destination = properties.getProperty(propertyPrefix + "." + i);
 			if (destination != null) {
@@ -197,8 +197,8 @@ public class Execution {
 		
 	}
 	
-	private static OutStream setupStreamOutToFile(final Path f, final String destination) {
-		return new OutStream(() -> {
+	private static StreamFunc setupStreamOutToFile(final Path f, final String destination) {
+		return new StreamFunc(() -> {
 			final var out = Path.of(destination).resolve(f);
 			if (Files.exists(out)) {
 				LOGGER.info("File already exists: {} ", out);
@@ -226,8 +226,8 @@ public class Execution {
 				});
 	}
 	
-	private static OutStream setupStreamOutToQueue(final Path f, final String destination) {
-		return new OutStream(() -> {
+	private static StreamFunc setupStreamOutToQueue(final Path f, final String destination) {
+		return new StreamFunc(() -> {
 			return new ByteArrayOutputStream();
 		},
 				(stream) -> {
@@ -239,7 +239,7 @@ public class Execution {
 	public record WorkPacket(Path file, String text) {
 	}
 	
-	private record OutStream(Supplier<OutputStream> open, Consumer<OutputStream> afterClose) {
+	private record StreamFunc(Supplier<OutputStream> open, Consumer<OutputStream> afterClose) {
 		
 	}
 }
