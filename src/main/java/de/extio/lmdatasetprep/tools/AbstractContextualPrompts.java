@@ -37,6 +37,8 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 	@Autowired
 	protected ClientService clientService;
 	
+	protected final ObjectMapper mapper = new ObjectMapper();
+	
 	private List<String> maleNames = new ArrayList<>();
 	
 	private List<String> femaleNames = new ArrayList<>();
@@ -103,9 +105,8 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 		final var json = response.substring(start, end + 1);
 		
 		Names names;
-		final ObjectMapper mapper = new ObjectMapper();
 		try {
-			names = mapper.readValue(json, Names.class);
+			names = this.mapper.readValue(json, Names.class);
 		}
 		catch (final JsonProcessingException e) {
 			return Map.of();
@@ -146,9 +147,9 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 		return TextUtils.normalizeModelResponse(completion.response(), true);
 	}
 	
-	protected void writeJsonLine(final ObjectMapper mapper, final OutputStream fos, final Object line) {
+	protected void writeJsonLine(final OutputStream fos, final Object line) {
 		try {
-			final var jsonb = mapper
+			final var jsonb = this.mapper
 					.writeValueAsString(line)
 					.getBytes(StandardCharsets.UTF_8);
 			fos.write(jsonb);

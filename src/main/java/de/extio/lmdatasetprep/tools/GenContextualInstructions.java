@@ -9,8 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import de.extio.lmdatasetprep.Execution;
 
 @Component
@@ -21,7 +19,6 @@ public class GenContextualInstructions extends AbstractContextualPrompts {
 	@Override
 	protected CreateTasks createTasks(final Properties properties, final List<ChunkCfg> chunkConfigurations, final int variations) {
 		return p -> {
-			final ObjectMapper mapper = new ObjectMapper();
 			final List<Runnable> tasks = new ArrayList<>();
 			
 			for (final ChunkCfg chunkCfg : chunkConfigurations) {
@@ -49,7 +46,7 @@ public class GenContextualInstructions extends AbstractContextualPrompts {
 								final var instruction = this.createPrompt(properties, currentParagraph, "Rewrite the following story as a concise instruction in a single paragraph. Return the instruction, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
 								final var qaLine = new QaLine(String.join(" ", summary, instruction), currentParagraph);
 								
-								this.writeJsonLine(mapper, fos, qaLine);
+								this.writeJsonLine(fos, qaLine);
 							}
 						});
 					});
