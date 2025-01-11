@@ -55,9 +55,11 @@ public class TextUtils {
 	public static String normalizeModelResponse(final String response, final boolean removePreamble) {
 		var result = StringUtils.replace(response, "\r", "");
 		
-		final int colon = result.indexOf(':');
-		if (colon > -1 && colon < result.length() - 2 && (colon < 50 || result.charAt(colon + 1) == '\n')) {
-			result = result.substring(colon + 1);
+		if (removePreamble) {
+			final int colon = result.indexOf(':');
+			if (colon > -1 && colon < result.length() - 2 && (colon < 50 || result.charAt(colon + 1) == '\n')) {
+				result = result.substring(colon + 1);
+			}
 		}
 		
 		result = StringUtils.trim(result);

@@ -144,7 +144,7 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 				instruction,
 				paragraph);
 		
-		return TextUtils.normalizeModelResponse(completion.response(), true);
+		return TextUtils.normalizeModelResponse(completion.response(), Boolean.parseBoolean(properties.getProperty("contextualPrompts.removePreamble", "false")));
 	}
 	
 	protected void writeJsonLine(final OutputStream fos, final Object line) {
@@ -171,4 +171,11 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 	
 	protected record HistInstrComplLine(String history, String instruct, String completion) {
 	}
+
+	protected record ConversationLine(String user, String assistant) {
+	}
+	
+	protected record ConversationsLine(List<ConversationLine> conversation) {
+	}
+
 }
