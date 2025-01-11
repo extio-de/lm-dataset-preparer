@@ -32,6 +32,11 @@ public class MergeJsonl implements DatasetTool {
 				break;
 			}
 			Execution.transform(source, p -> {
+				final var filter = properties.getProperty("mergeJsonl.filter", "");
+				if (!filter.isEmpty() && !p.file().getFileName().toString().contains(filter)) {
+					return List.of();
+				}
+				
 				return List.of(() -> {
 					try {
 						lines.addAll(Files.readAllLines(p.file()));
