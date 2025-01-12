@@ -41,9 +41,9 @@ public class GenContextualInstructions extends AbstractContextualPrompts {
 								
 								final var inScope = String.join("\n", paragraphs.subList(j - 1, j));
 								final var mapping = this.createCharacterNameMapping(inScope, properties);
-								final var summary = this.createPrompt(properties, this.renameCharacters(paragraphs.get(j - 1), mapping), "Rewrite the following story as a summary of the previous paragraph and write that it is the summary. Return the summary, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+								final var summary = this.requestCompletion(properties, this.renameCharacters(paragraphs.get(j - 1), mapping), "Rewrite the following story as a summary of the previous paragraph and write that it is the summary. Return the summary, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
 								final var currentParagraph = this.renameCharacters(paragraphs.get(j), mapping);
-								final var instruction = this.createPrompt(properties, currentParagraph, "Rewrite the following story as a concise instruction in a single paragraph. Return the instruction, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+								final var instruction = this.requestCompletion(properties, currentParagraph, "Rewrite the following story as a concise instruction in a single paragraph. Return the instruction, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
 								final var qaLine = new QaLine(String.join(" ", summary, instruction), currentParagraph);
 								
 								this.writeJsonLine(fos, qaLine);

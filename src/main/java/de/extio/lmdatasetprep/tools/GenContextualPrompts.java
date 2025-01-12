@@ -43,13 +43,13 @@ public class GenContextualPrompts extends AbstractContextualPrompts {
 								if (j > 2) {
 									final var history = String.join("\n", paragraphs.subList(j - 3, j));
 									final var mapping = this.createCharacterNameMapping(history, properties);
-									final var previous = this.createPrompt(properties, this.renameCharacters(history, mapping), "Write a summary of the following story as a user prompt that asks to write the story. Mention the place where they are and ask the question what could happen next. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+									final var previous = this.requestCompletion(properties, this.renameCharacters(history, mapping), "Write a summary of the following story as a user prompt that asks to write the story. Mention the place where they are and ask the question what could happen next. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
 									qaLine = new QaLine(previous, this.renameCharacters(paragraphs.get(j), mapping));
 								}
 								else {
 									final var mapping = this.createCharacterNameMapping(paragraphs.get(j), properties);
 									final var paragraph = this.renameCharacters(paragraphs.get(j), mapping);
-									final var userPrompt = this.createPrompt(properties, paragraph, "Write a summary of the following story as a user prompt that asks to write the story. Include all essential details, enabling the user to better understand the subject matter. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+									final var userPrompt = this.requestCompletion(properties, paragraph, "Write a summary of the following story as a user prompt that asks to write the story. Include all essential details, enabling the user to better understand the subject matter. Return the prompt, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
 									qaLine = new QaLine(userPrompt, paragraph);
 								}
 								

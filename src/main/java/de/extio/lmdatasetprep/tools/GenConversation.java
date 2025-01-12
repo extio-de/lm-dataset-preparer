@@ -11,6 +11,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import de.extio.lmdatasetprep.Execution;
+import de.extio.lmlib.client.Conversation;
+import de.extio.lmlib.client.Conversation.Turn;
+import de.extio.lmlib.client.Conversation.TurnType;
 
 @Component
 public class GenConversation extends AbstractContextualPrompts {
@@ -37,10 +40,21 @@ public class GenConversation extends AbstractContextualPrompts {
 								mapping.putAll(this.createCharacterNameMapping(paragraphs.get(j), properties));
 							}
 							
+							String previousParagraph = null;
+							String currentParagraph = null;
 							for (int j = 0; j < paragraphs.size(); j++) {
 								LOGGER.info("Paragraph " + (j + 1) + "/" + paragraphs.size());
-								final var currentParagraph = this.renameCharacters(paragraphs.get(j), mapping);
-								final var instruction = this.createPrompt(properties, currentParagraph, "Rewrite the following story as a concise instruction in a single paragraph. Return the instruction, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+								
+								previousParagraph = currentParagraph;
+								currentParagraph = this.renameCharacters(paragraphs.get(j), mapping);
+								
+								final var c = Conversation.create("Rewrite the following story as a concise instruction in a single paragraph. Return the instruction, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation.", previousParagraph != null ? previousParagraph : currentParagraph);
+								if (previousParagraph != null) {
+									c.addTurn(new Turn(TurnType.ASSISTANT, conversation.getLast().user()));
+									c.addTurn(new Turn(TurnType.USER, currentParagraph));
+								}
+								
+								final var instruction = this.requestCompletion(properties, c);
 								conversation.add(new ConversationLine(instruction, currentParagraph));
 							}
 						}

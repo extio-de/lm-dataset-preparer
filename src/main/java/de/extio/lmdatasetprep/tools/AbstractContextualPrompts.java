@@ -27,6 +27,8 @@ import de.extio.lmdatasetprep.Execution;
 import de.extio.lmdatasetprep.Execution.WorkPacket;
 import de.extio.lmdatasetprep.TextUtils;
 import de.extio.lmlib.client.ClientService;
+import de.extio.lmlib.client.Completion;
+import de.extio.lmlib.client.Conversation;
 
 abstract class AbstractContextualPrompts implements InitializingBean, DatasetTool {
 	
@@ -138,15 +140,24 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 		return result;
 	}
 	
-	protected String createPrompt(final Properties properties, final String paragraph, final String instruction) {
+	protected String requestCompletion(final Properties properties, final String paragraph, final String instruction) {
 		final var completion = this.getClient(properties, this.clientService).completion(this.getModelCategory(properties),
 				"You are an assistant with great text writing skills.",
 				instruction,
 				paragraph);
 		
-		return TextUtils.normalizeModelResponse(completion.response(), Boolean.parseBoolean(properties.getProperty("contextualPrompts.removePreamble", "false")));
+		return processResponse(properties, completion);
+	}
+
+	protected String requestCompletion(final Properties properties, final Conversation conversation) {
+		final var completion = this.getClient(properties, this.clientService).conversation(this.getModelCategory(properties), conversation);
+		return processResponse(properties, completion);
 	}
 	
+	private String processResponse(final Properties properties, final Completion completion) {
+		return TextUtils.normalizeModelResponse(completion.response(), Boolean.parseBoolean(properties.getProperty("contextualPrompts.removePreamble", "false")));
+	}
+
 	protected void writeJsonLine(final OutputStream fos, final Object line) {
 		try {
 			final var jsonb = this.mapper
