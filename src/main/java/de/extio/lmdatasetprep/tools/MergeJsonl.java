@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -25,44 +26,48 @@ public class MergeJsonl implements DatasetTool {
 	
 	@Override
 	public void accept(final Properties properties) {
-		final List<String> lines = Collections.synchronizedList(new ArrayList<>());
-		for (int i = 0; i < 99; i++) {
-			final String source = properties.getProperty("mergeJsonl.source." + i, "");
-			if (source.isBlank()) {
-				break;
-			}
-			Execution.transform(source, p -> {
-				final var filter = properties.getProperty("mergeJsonl.filter", "");
-				if (!filter.isEmpty() && !p.file().getFileName().toString().contains(filter)) {
-					return List.of();
+		final var filters = properties.getProperty("mergeJsonl.filter", "*");
+		for (final var filter : StringUtils.split(filters, ',')) {
+			final List<String> lines = Collections.synchronizedList(new ArrayList<>());
+			for (int i = 0; i < 99; i++) {
+				final String source = properties.getProperty("mergeJsonl.source." + i, "");
+				if (source.isBlank()) {
+					break;
 				}
-				
-				return List.of(() -> {
-					try {
-						lines.addAll(Files.readAllLines(p.file()));
-					}
-					catch (final IOException e) {
-						throw new RuntimeException("Cannot read file", e);
+				Execution.transform(source, p -> {
+					if (!filter.equals("*") && !p.file().getFileName().toString().contains(filter)) {
+						return List.of();
 					}
 					
+					return List.of(() -> {
+						try {
+							lines.addAll(Files.readAllLines(p.file()));
+						}
+						catch (final IOException e) {
+							throw new RuntimeException("Cannot read file", e);
+						}
+						
+					});
 				});
+			}
+			
+			Collections.shuffle(lines, ThreadLocalRandom.current());
+			
+			final Path out = Path.of("dataset-merged" + (filter.equals("*") ? "" : filter) + ".jsonl");
+			
+			Execution.streamOut(out, "mergeJsonl.destination", properties, fos -> {
+				try {
+					for (final String line : lines) {
+						fos.write(line.getBytes(StandardCharsets.UTF_8));
+						fos.write(NEWLINE);
+					}
+				}
+				catch (final IOException e1) {
+					LOGGER.error("IO exception", e1);
+				}
 			});
 		}
 		
-		Collections.shuffle(lines, ThreadLocalRandom.current());
-		
-		final Path out = Path.of("dataset-merged.jsonl");
-		Execution.streamOut(out, "mergeJsonl.destination", properties, fos -> {
-			try {
-				for (final String line : lines) {
-					fos.write(line.getBytes(StandardCharsets.UTF_8));
-					fos.write(NEWLINE);
-				}
-			}
-			catch (final IOException e1) {
-				LOGGER.error("IO exception", e1);
-			}
-		});
 	}
 	
 }
