@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,7 +26,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import org.apache.commons.io.output.TeeOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,7 +178,11 @@ public class Execution {
 		}
 		
 		final var streams = streamFuncs.stream().map(streamFunc -> streamFunc.open().get()).toList();
-		final var outStream = streams.size() == 1 ? streams.getFirst() : new TeeOutputStream(streams.get(0), streams.get(1));
+		if (streams.stream().anyMatch(Objects::isNull)) {
+			return;
+		}
+		
+		final var outStream = new ProxyOutputStream(streams);
 		try {
 			consumer.accept(outStream);
 		}
@@ -236,10 +240,40 @@ public class Execution {
 				});
 	}
 	
+	private static class ProxyOutputStream extends OutputStream {
+		
+		private final List<OutputStream> streams;
+		
+		ProxyOutputStream(final List<OutputStream> streams) {
+			this.streams = streams;
+		}
+		
+		@Override
+		public void write(final int b) throws IOException {
+			for (final var stream : this.streams) {
+				stream.write(b);
+			}
+		}
+		
+		@Override
+		public void flush() throws IOException {
+			for (final var stream : this.streams) {
+				stream.flush();
+			}
+		}
+		
+		@Override
+		public void close() throws IOException {
+			for (final var stream : this.streams) {
+				stream.close();
+			}
+		}
+		
+	}
+	
 	public record WorkPacket(Path file, String text) {
 	}
 	
 	private record StreamFunc(Supplier<OutputStream> open, Consumer<OutputStream> afterClose) {
-		
 	}
 }
