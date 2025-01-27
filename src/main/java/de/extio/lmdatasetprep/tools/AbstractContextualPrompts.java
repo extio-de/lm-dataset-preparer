@@ -20,6 +20,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -58,6 +59,8 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 		try (var in = new ClassPathResource("female.txt").getInputStream()) {
 			this.femaleNames = new BufferedReader(new InputStreamReader(in)).lines().collect(Collectors.toList());
 		}
+		
+		this.mapper.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
 	}
 	
 	@Override
@@ -146,24 +149,21 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 				instruction,
 				paragraph);
 		
-		return processResponse(properties, completion);
+		return this.processResponse(properties, completion);
 	}
-
+	
 	protected String requestCompletion(final Properties properties, final Conversation conversation) {
 		final var completion = this.getClient(properties, this.clientService).conversation(this.getModelCategory(properties), conversation);
-		return processResponse(properties, completion);
+		return this.processResponse(properties, completion);
 	}
 	
 	private String processResponse(final Properties properties, final Completion completion) {
 		return TextUtils.normalizeModelResponse(completion.response(), Boolean.parseBoolean(properties.getProperty("contextualPrompts.removePreamble", "false")));
 	}
-
+	
 	protected void writeJsonLine(final OutputStream fos, final Object line) {
 		try {
-			final var jsonb = this.mapper
-					.writeValueAsString(line)
-					.getBytes(StandardCharsets.UTF_8);
-			fos.write(jsonb);
+			this.mapper.writeValue(fos, line);
 			fos.write(NEWLINE);
 		}
 		catch (final IOException e) {
@@ -182,11 +182,11 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 	
 	protected record HistInstrComplLine(String history, String instruct, String completion) {
 	}
-
+	
 	protected record ConversationLine(String user, String assistant) {
 	}
 	
 	protected record ConversationsLine(List<ConversationLine> conversation) {
 	}
-
+	
 }

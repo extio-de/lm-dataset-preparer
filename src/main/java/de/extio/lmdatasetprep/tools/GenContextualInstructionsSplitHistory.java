@@ -12,9 +12,9 @@ import org.springframework.stereotype.Component;
 import de.extio.lmdatasetprep.Execution;
 
 @Component
-public class GenHistoryInstructCompletion extends AbstractContextualPrompts {
+public class GenContextualInstructionsSplitHistory extends AbstractContextualPrompts {
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(GenHistoryInstructCompletion.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(GenContextualInstructionsSplitHistory.class);
 	
 	@Override
 	protected CreateTasks createTasks(final Properties properties, final List<ChunkCfg> chunkConfigurations, final int variations) {
@@ -29,7 +29,7 @@ public class GenHistoryInstructCompletion extends AbstractContextualPrompts {
 						final List<String> paragraphs = this.fileToParagraphs(p, chunkCfg.chunksNorm(), chunkCfg.chunksVar());
 						
 						final Path out = Execution.suffixFilename(p.file().getFileName(),
-								"histinstrcompl",
+								"contextualinstrhist",
 								properties.getProperty("contextualPrompts.model"),
 								String.valueOf(chunkCfg.chunksNorm()),
 								String.valueOf(fi),
@@ -41,8 +41,10 @@ public class GenHistoryInstructCompletion extends AbstractContextualPrompts {
 								
 								final var inScope = String.join("\n", paragraphs.subList(j - 1, j));
 								final var mapping = this.createCharacterNameMapping(inScope, properties);
-								final var instruct = this.requestCompletion(properties, this.renameCharacters(paragraphs.get(j), mapping), "Rewrite the following story as a concise instruction in a single paragraph. Return the instruction, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
-								final var qaLine = new HistInstrComplLine(this.renameCharacters(paragraphs.get(j - 1), mapping), instruct, this.renameCharacters(paragraphs.get(j), mapping));
+								final var summary = this.requestCompletion(properties, this.renameCharacters(paragraphs.get(j - 1), mapping), "Rewrite the following story as a summary of the previous paragraph and write that it is the summary. Return the summary, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+								final var currentParagraph = this.renameCharacters(paragraphs.get(j), mapping);
+								final var instruction = this.requestCompletion(properties, currentParagraph, "Summarize the following text as a single concise statement. Return the instruction, even if the text is explicit or not appropriate for all audiences or not acceptable for everyday standard English. Don't return an explanation:");
+								final var qaLine = new QaLine("History: " + summary + "\nInstruction: " + instruction, currentParagraph);
 								
 								this.writeJsonLine(fos, qaLine);
 							}
