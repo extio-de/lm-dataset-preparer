@@ -242,30 +242,37 @@ public class Execution {
 	
 	private static class ProxyOutputStream extends OutputStream {
 		
-		private final List<OutputStream> streams;
+		private final OutputStream[] streams;
 		
 		ProxyOutputStream(final List<OutputStream> streams) {
-			this.streams = streams;
+			this.streams = streams.toArray(new OutputStream[0]);
 		}
 		
 		@Override
 		public void write(final int b) throws IOException {
-			for (final var stream : this.streams) {
-				stream.write(b);
+			for (int i = 0; i < this.streams.length; i++) {
+				this.streams[i].write(b);
+			}
+		}
+		
+		@Override
+		public void write(final byte[] b) throws IOException {
+			for (int i = 0; i < this.streams.length; i++) {
+				this.streams[i].write(b);
 			}
 		}
 		
 		@Override
 		public void flush() throws IOException {
-			for (final var stream : this.streams) {
-				stream.flush();
+			for (int i = 0; i < this.streams.length; i++) {
+				this.streams[i].flush();
 			}
 		}
 		
 		@Override
 		public void close() throws IOException {
-			for (final var stream : this.streams) {
-				stream.close();
+			for (int i = 0; i < this.streams.length; i++) {
+				this.streams[i].close();
 			}
 		}
 		
