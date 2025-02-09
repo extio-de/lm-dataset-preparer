@@ -72,22 +72,19 @@ public class LmDatasetPreparerApplication implements CommandLineRunner, Applicat
 				t.start();
 			}
 			
-			do {
-				Thread.sleep(1000);
-			} while (Execution.startedFileConsumers.get() == 0 || Execution.startedFileConsumers.get() > Execution.finishedFileConsumers.get());
-			LOGGER.info("All file consumers are finished");
-			
 			int cnt = 0;
 			while (cnt < 5) {
 				Thread.sleep(1000);
-				if (Execution.tasksRunning.get() != 0 || Execution.work.values().stream().anyMatch(q -> q.values().stream().anyMatch(bq -> !bq.isEmpty()))) {
+				if (Execution.startedFileConsumers.get() == 0 || Execution.startedFileConsumers.get() > Execution.finishedFileConsumers.get() ||
+						Execution.tasksRunning.get() != 0 || Execution.work.values().stream().anyMatch(q -> q.values().stream().anyMatch(bq -> !bq.isEmpty()))) {
+					
 					cnt = 0;
 				}
 				else {
 					cnt++;
 				}
 			}
-			LOGGER.info("All queues are empty");
+			LOGGER.info("All file consumers are finished, All queues are empty");
 			
 			Execution.shutdown.set(true);
 			for (final var thread : threads) {

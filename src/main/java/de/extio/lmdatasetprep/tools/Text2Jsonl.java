@@ -27,7 +27,7 @@ public class Text2Jsonl implements DatasetTool {
 	
 	@Override
 	public void accept(final Properties properties) {
-		final Path out = Path.of("dataset.jsonl");
+		final Path out = Path.of("dataset-text.jsonl");
 		Execution.streamOut(out, "text2Jsonl.destination", properties, fos -> {
 			Execution.transform(properties.getProperty("text2Jsonl.source"), p -> {
 				return List.of(() -> {

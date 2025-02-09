@@ -189,4 +189,7 @@ abstract class AbstractContextualPrompts implements InitializingBean, DatasetToo
 	protected record ConversationsLine(List<ConversationLine> conversation) {
 	}
 	
+	protected record TextLine(String text) {
+	}
+	
 }

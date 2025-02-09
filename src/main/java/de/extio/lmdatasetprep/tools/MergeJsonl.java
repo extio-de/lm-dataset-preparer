@@ -2,9 +2,9 @@ package de.extio.lmdatasetprep.tools;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -26,7 +26,7 @@ public class MergeJsonl implements DatasetTool {
 	
 	@Override
 	public void accept(final Properties properties) {
-		final var filters = properties.getProperty("mergeJsonl.filter", "*");
+		final var filters = StringUtils.defaultIfEmpty(properties.getProperty("mergeJsonl.filter", "*"), "*");
 		for (final var filter : StringUtils.split(filters, ',')) {
 			final List<String> lines = Collections.synchronizedList(new ArrayList<>());
 			for (int i = 0; i < 99; i++) {
@@ -40,13 +40,7 @@ public class MergeJsonl implements DatasetTool {
 					}
 					
 					return List.of(() -> {
-						try {
-							lines.addAll(Files.readAllLines(p.file()));
-						}
-						catch (final IOException e) {
-							throw new RuntimeException("Cannot read file", e);
-						}
-						
+						lines.addAll(Arrays.asList(StringUtils.split(p.text(), '\n')));
 					});
 				});
 			}

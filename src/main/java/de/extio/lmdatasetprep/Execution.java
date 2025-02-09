@@ -14,8 +14,10 @@ import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +46,8 @@ public class Execution {
 	public static final AtomicInteger tasksRunning = new AtomicInteger();
 	
 	private static final Semaphore taskSemaphore;
+	
+	private static final ThreadLocal<List<Future<?>>> localOutWorkers = ThreadLocal.withInitial(ArrayList::new);
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(Execution.class);
 	
@@ -120,7 +124,7 @@ public class Execution {
 		try {
 			taskSemaphore.acquire();
 			tasksRunning.incrementAndGet();
-			executorService.execute(() -> {
+			localOutWorkers.get().add(executorService.submit(() -> {
 				try {
 					r.run();
 				}
@@ -128,7 +132,7 @@ public class Execution {
 					tasksRunning.decrementAndGet();
 					taskSemaphore.release();
 				}
-			});
+			}));
 		}
 		catch (final InterruptedException e) {
 			throw new RuntimeException("Interrupted", e);
@@ -182,17 +186,15 @@ public class Execution {
 			return;
 		}
 		
-		final var outStream = new ProxyOutputStream(streams);
-		try {
+		localOutWorkers.get().clear();
+		try (final var outStream = new ProxyOutputStream(streams)) {
 			consumer.accept(outStream);
+			for (final var w : localOutWorkers.get()) {
+				w.get();
+			}
 		}
-		finally {
-			try {
-				outStream.close();
-			}
-			catch (final IOException e) {
-				LOGGER.error("IO exception", e);
-			}
+		catch (InterruptedException | ExecutionException | IOException e) {
+			LOGGER.error("Error while streaming out", e);
 		}
 		
 		for (int i = 0; i < streamFuncs.size(); i++) {
