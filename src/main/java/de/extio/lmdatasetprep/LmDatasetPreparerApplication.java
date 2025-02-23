@@ -17,10 +17,13 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 
 import de.extio.lmdatasetprep.tools.DatasetTool;
@@ -107,6 +110,11 @@ public class LmDatasetPreparerApplication implements CommandLineRunner, Applicat
 	@Override
 	public void setApplicationContext(final ApplicationContext appContext) throws BeansException {
 		applicationContext = appContext;
+	}
+	
+	@Bean
+	public CacheManager cacheManager() {
+		return new CaffeineCacheManager();
 	}
 	
 }
