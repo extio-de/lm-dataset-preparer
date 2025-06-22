@@ -63,7 +63,7 @@ public class TextUtils {
 		}
 		
 		result = StringUtils.trim(result);
-		result = StringUtils.strip(result, "´`'“”„‟«»\"\r\n");
+		result = StringUtils.strip(result, "*#´`'“”„‟«»\"\n");
 		result = StringUtils.trim(result);
 		
 		return result;
